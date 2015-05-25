@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
     system("/bin/UdpMulticastClient -qws &");
     CommonSetting::Sleep(1000);
     system("/bin/CheckMainProgramState -qws &");
+    CommonSetting::Sleep(1000);
 
     //创建子线程1,用来与服务器进行tcp通信
     TcpCommunicate *tcp_communicate = new TcpCommunicate;
@@ -32,3 +33,8 @@ int main(int argc, char *argv[])
 
     return app.exec();
 }
+
+//    system("/bin/ListenSerialThread -qws &");
+//    CommonSetting::Sleep(1000);
+//    system("/bin/TcpCommunicate -qws &");
+//    CommonSetting::Sleep(1000);

@@ -12,8 +12,8 @@ ReadCardID::ReadCardID(QObject *parent) :
     operate_camera = new OperateCamera(this);
 
     link_operate = new LinkOperate;
-    link_operate->moveToThread(&link_operate_thread);
-    link_operate_thread.start();
+//    link_operate->moveToThread(&link_operate_thread);
+//    link_operate_thread.start();
 
     quint32 MaxTime = CommonSetting::ReadSettings("/bin/config.ini","time/MaxTime").toUInt() * 1000;
     TimeOutClearTimer = new QTimer(this);

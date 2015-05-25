@@ -29,7 +29,7 @@ ListenSerialThread::ListenSerialThread(QObject *parent) :
     connect(tcpSocket,SIGNAL(error(QAbstractSocket::SocketError)),this,SLOT(slotDisplayError(QAbstractSocket::SocketError)));
 
     ReadSmartUSBStateTimer = new QTimer(this);
-    ReadSmartUSBStateTimer->setInterval(SmartUSBNum * 500);
+    ReadSmartUSBStateTimer->setInterval(SmartUSBNum * 1500);
     connect(ReadSmartUSBStateTimer,SIGNAL(timeout()),this,SLOT(PollingReadSmartUSBState()));
     ReadSmartUSBStateTimer->start();
 }
@@ -73,7 +73,7 @@ void ListenSerialThread::PollingReadSmartUSBState()
 QString ListenSerialThread::ReadSerial()
 {
 //    CommonSetting::Sleep(100);
-    usleep(100 * 1000);
+    usleep(300 * 1000);
 
     QString strHex,RetValue;
     QByteArray Buffer = mySerial->readAll();
