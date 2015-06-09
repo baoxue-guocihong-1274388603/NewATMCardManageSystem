@@ -17,7 +17,7 @@ LinkOperate::LinkOperate(QObject *parent) :
     connect(BuzzerTimer,SIGNAL(timeout()),this,SLOT(slotBuzzerOff()));
 
     PowerLedTimer = new QTimer;
-    quint32 PowerLedTime = CommonSetting::ReadSettings("/bin/config.ini","time/PowerLedTime").toUInt() * 500;//电源指示灯闪烁频率
+    quint32 PowerLedTime = /*CommonSetting::ReadSettings("/bin/config.ini","time/PowerLedTime").toUInt()*/1 * 500;//电源指示灯闪烁频率
     PowerLedTimer->setInterval(PowerLedTime);
     connect(PowerLedTimer,SIGNAL(timeout()),this,SLOT(slotPowerLedState()));
     PowerLedTimer->start();

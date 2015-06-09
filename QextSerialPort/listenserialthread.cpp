@@ -67,13 +67,16 @@ void ListenSerialThread::PollingReadSmartUSBState()
                 }
             }
         }
+//        CommonSetting::Sleep(800);
+        usleep(400 * 1000);
+        usleep(400 * 1000);
     }
 }
 
 QString ListenSerialThread::ReadSerial()
 {
 //    CommonSetting::Sleep(100);
-    usleep(300 * 1000);
+    usleep(200 * 1000);
 
     QString strHex,RetValue;
     QByteArray Buffer = mySerial->readAll();
