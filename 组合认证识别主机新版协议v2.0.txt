@@ -1,0 +1,207 @@
+tcp长连接和短连接都可以，端口65000
+组合认证识别/发卡主机：Type字段用ICCard
+加油站：Type字段用IdentifierCard
+
+注意：卡号发生了改变，服务器会吧所有卡号发给我，而不是把新增的卡号发给我。
+
+命令1：DeviceHeart
+<?xml version="1.0" encoding="UTF-8"?><Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.45"><DeviceHeart State="1" CardListUpTime="2010-01-01 00:00:00 "/></Device>
+
+返回1:
+ICARD:00001078000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-09-14 09:26:41">
+<Caption>14511765,4,1,2016-06-01</Caption>
+<Caption>14318613,5,1,2016-06-01</Caption>
+<Caption>02636249,3,1,2018-04-22</Caption>
+<Caption>02634169,3,1,2017-08-19</Caption>
+<Caption>15041429,3,1,2016-06-02</Caption>
+<Caption>14304517,3,1,2018-06-02</Caption>
+<Caption>05554226,4,1,2018-04-14</Caption>
+<Caption>01839554,4,1,2018-04-14</Caption>
+<Caption>02635441,1,1,2017-04-08</Caption>
+<Caption>02637225,1,1,2017-04-08</Caption>
+<Caption>14004213,1,1,2018-04-14</Caption>
+<Caption>12735861,1,1,2018-06-02</Caption>
+<Caption>13862053,1,1,2018-06-02</Caption>
+<Caption>14760245,2,1,2017-06-02</Caption>
+<Caption>22545090,3,1,2018-04-22</Caption>
+<Caption>11108128,6,1,2018-04-14</Caption>
+<Caption>02639109,4,1,2017-05-19</Caption>
+<Caption>15343573,1,1,2016-06-01</Caption>
+<Caption>02641509,2,1,2017-05-19</Caption>
+<Caption>04925643,3,1,2018-04-14</Caption>
+<Caption>432503199006177691,7,1,2018-04-30</Caption>
+<Caption>14540549,4,1,2018-06-02</Caption>
+</Server>
+
+返回2：
+ICARD:00000146000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-02-02 08:51:15">OK</Server>
+
+命令2：GetCardTypeName
+<?xml version="1.0" encoding="UTF-8"?>
+<Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.45">
+<GetCardTypeName/>
+</Device>
+
+旧版：
+返回：
+ICARD:00000783000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-02-02 08:53:31">
+<FunctionTypeName>1,加钞管理,1#1,1,3,3;2,巡检管理,1#2,4;3,押运人员,0#;4,维修维护,0#;5,接警人员,1#5,5;6,安装测试,2#;7,零拷加油,2#</FunctionTypeName>
+<PersonTypeName>2,1,ATM 设备专管员;2,2,ATM 设备巡检员;1,3,ATM 运钞管理;2,4,ATM 设备管理;2,5,安防系统管理;3,6,运钞服务公司;4,7,报警中心维护;4,8,ATM网络运维商;4,9,ATM其他运营商;4,10,视频监控工程商;4,11,联网报警工程商;4,12,防 泄 密产品商;4,13,智能分析产品商;4,14,网络服务产品商;4,15,身份识别产品商;5,16,报警中心接警;6,17,图像测试;7,18,零拷加油人员</PersonTypeName>
+</Server>
+
+新版：
+ICARD:00000793000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-09-14 09:24:43">
+<FunctionTypeName>1,加钞管理,1#1,1,3,3;2,巡检管理,1#2,4;3,押运布防,1#1,1,3,3;4,维修维护,2#;5,接警人员,1#5,5</FunctionTypeName>
+<PersonTypeName>2,2001,ATM 设备专管员;2,2002,ATM 设备巡检员;1,1001,ATM 运钞管理;2,2003,ATM 设备管理;2,2004,安防系统管理;3,3001,运钞服务公司;4,4001,报警中心维护;4,4002,ATM网络运维商;4,4999,ATM其他运营商;4,4003,视频监控工程商;4,4004,联网报警工程商;4,4006,防 泄 密产品商;4,4007,智能分析产品商;4,4008,网络服务产品商;4,4005,身份识别产品商;5,5001,报警中心接警;6,6001,图像测试;7,7001,零考加油</PersonTypeName>
+</Server>
+
+命令3：加钞
+<?xml version="1.0" encoding="UTF-8"?>
+<Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.45">
+
+<OperationCmd Type="1" CardID="70000" TriggerTime="2015-02-02 08:53:52">/9j/4AAQSkZJRkoAKKWiKWiigD/9k=</OperationCmd>
+
+<OperationCmd Type="1" CardID="70001" TriggerTime="2015-02-02 08:53:52">/9j/4AAQSkZJRgAWkoAKKWigBKWiigD/9k=</OperationCmd>
+
+<OperationCmd Type="1" CardID="70002" TriggerTime="2015-02-02 08:53:52">/9j/4AAQSkZJRgAB1GakaozXM2Sf/Z</OperationCmd>
+
+<OperationCmd Type="1" CardID="70003" TriggerTime="2015-02-02 08:53:52">/9j/4AAQSkZJRgAZ61GakazXM2Sf/Z</OperationCmd>
+
+<OperationCmd Type="1" CardID="70000" TriggerTime="2015-02-02 08:53:52">/9j/4AAQSkZJRgABAQAAAQWigD/9k=</OperationCmd>
+</Device>
+
+返回：
+ICARD:00000359000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-02-02 08:54:00">
+<CardState>70000,2,1,2015-12-31</CardState>
+<CardState>70001,2,1,2015-12-31</CardState>
+<CardState>70002,2,1,2015-12-31</CardState>
+<CardState>70003,2,1,2015-12-31</CardState>
+<CardState>70000,2,1,2015-12-31</CardState>
+</Server>
+
+命令4：巡检维修
+<?xml version="1.0" encoding="UTF-8"?>
+<Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.45">
+
+<OperationCmd Type="2" CardID="70004" TriggerTime="2015-02-02 08:58:54">/9j/4AAQSkZJRgABAQivRhTSRsO5//Z</OperationCmd>
+
+<OperationCmd Type="2" CardID="70005" TriggerTime="2015-02-02 08:58:54">/9j/4AAQSkZJRgABA5Tg02loA//2Q==</OperationCmd>
+
+<OperationCmd Type="2" CardID="70004" TriggerTime="2015-02-02 08:58:54">/9j/4AAQSkZJRgABAQAAAvRhTSO5//Z</OperationCmd>
+</Device>
+
+返回：
+ICARD:00000273000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-02-02 08:59:04">
+<CardState>70004,7,1,2015-12-31</CardState>
+<CardState>70005,5,1,2015-12-31</CardState>
+<CardState>70004,7,1,2015-12-31</CardState>
+</Server>
+
+命令5：区域报警出警
+<?xml version="1.0" encoding="UTF-8"?>
+<Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.45">
+
+<OperationCmd Type="5" CardID="70005" TriggerTime="2015-02-02 09:04:03">/9j/4AAQSkZJRgAvRhTSRfsO5//Z</OperationCmd>
+
+<OperationCmd Type="5" CardID="70004" TriggerTime="2015-02-02 09:04:03">/9j/4AAQSkZJRgABAQ2loA//2Q==</OperationCmd>
+
+<OperationCmd Type="5" CardID="70005" TriggerTime="2015-02-02 09:04:03">/9j/4AAQSkZJRgABAjtWe9sO5//Z</OperationCmd>
+</Device>
+
+返回：
+ICARD:00000273000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-02-02 09:04:06">
+<CardState>70005,5,1,2015-12-31</CardState>
+<CardState>70004,7,1,2015-12-31</CardState>
+<CardState>70005,5,1,2015-12-31</CardState>
+</Server>
+
+新增命令：
+命令6：获取卡号详细信息
+情况1：
+<?xml version="1.0" encoding="UTF-8"?>
+<Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.71">
+<GetCardInfo>70000</GetCardInfo>
+</Device>
+
+返回：
+ICARD:00000819000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-09-14 09:11:47">
+<ICard Number="70000">
+<Caption Value="企业证号">310106</Caption>
+<Caption Value="企业名称">傲兰杰测试</Caption>
+<Caption Value="功能类型">1</Caption>
+<Caption Value="姓名">加钞1</Caption>
+<Caption Value="性别">男</Caption>
+<Caption Value="民族">汗</Caption>
+<Caption Value="居住地址">成都北路成都北路成都北路成都北路成都北路</Caption>
+<Caption Value="证件号码">310102198403111618</Caption>
+<Caption Value="联系固话">111111</Caption>
+<Caption Value="联系手机">11111111111</Caption>
+<Caption Value="_PicUrl">http://sgdzpic.3322.org:8088/cardpic/SourceCardPic/310102198403111618.jpg</Caption>
+<Function>1001</Function>
+</ICard>
+</Server>
+
+情况2：
+<?xml version="1.0" encoding="UTF-8"?>
+<Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.71">
+<GetCardInfo>70000,70002,15343573</GetCardInfo>
+</Device>
+返回：
+ICARD:00002038000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-09-14 10:11:47">
+<ICard Number="70000">
+<Caption Value="企业证号">310106</Caption>
+<Caption Value="企业名称">傲兰杰测试</Caption>
+<Caption Value="功能类型">1</Caption>
+<Caption Value="姓名">加钞1</Caption>
+<Caption Value="性别">男</Caption>
+<Caption Value="民族">汗</Caption>
+<Caption Value="居住地址">成都北路成都北路成都北路成都北路成都北路</Caption>
+<Caption Value="证件号码">310102198403111618</Caption>
+<Caption Value="联系固话">111111</Caption>
+<Caption Value="联系手机">11111111111</Caption>
+<Caption Value="_PicUrl">http://sgdzpic.3322.org:8088/cardpic/SourceCardPic/310102198403111618.jpg</Caption>
+<Function>1001</Function>
+</ICard>
+<ICard Number="70002">
+<Caption Value="企业证号">200001</Caption>
+<Caption Value="企业名称">押运测试1</Caption>
+<Caption Value="功能类型">2</Caption>
+<Caption Value="姓名">押运1</Caption>
+<Caption Value="性别">女</Caption>
+<Caption Value="民族">汉</Caption>
+<Caption Value="居住地址">淮海路</Caption>
+<Caption Value="证件号码">310102198403111234</Caption>
+<Caption Value="联系固话">222222</Caption>
+<Caption Value="联系手机">22222222222</Caption>
+<Caption Value="_PicUrl">http://sgdzpic.3322.org:8088/cardpic/SourceCardPic/310102198403111234.jpg</Caption>
+<Function>2002,2003</Function>
+</ICard>
+<ICard Number="15343573">
+<Caption Value="企业证号">111111</Caption>
+<Caption Value="企业名称">宝学测试</Caption>
+<Caption Value="功能类型">1</Caption>
+<Caption Value="姓名">15343573</Caption>
+<Caption Value="性别">男</Caption>
+<Caption Value="民族">
+</Caption>
+<Caption Value="居住地址">
+</Caption>
+<Caption Value="证件号码">310222222222222222</Caption>
+<Caption Value="联系固话">
+</Caption>
+<Caption Value="联系手机">
+</Caption>
+<Caption Value="_PicUrl">http://sgdzpic.3322.org:8088/cardpic/SourceCardPic/310222222222222222.jpg</Caption>
+<Function>
+</Function>
+</ICard>
+</Server>

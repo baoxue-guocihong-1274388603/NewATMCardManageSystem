@@ -1,0 +1,29 @@
+1、报警
+发送：
+<?xml version="1.0" encoding="UTF-8"?>
+<Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.66">
+<OperationCmd Type="80001" CardID="0,2,1" TriggerTime="2015-05-14 15:35:14"/>
+</Device>
+
+返回：
+ICARD:00000149000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-05-14 15:35:21">
+<OK/>
+</Server>
+
+说明：
+Type：固定为80001
+CardID:SmartUSB设备id（0-7），SmartUSB设备的状态，SmartUSB设备的报警状态（0-1）
+
+2、报警解除
+发送：
+<?xml version="1.0" encoding="UTF-8"?>
+<Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.66">
+<OperationCmd Type="80002" CardID="0,3,0" TriggerTime="2015-05-14 15:36:56"/>
+</Device>
+
+返回：
+ICARD:00000149000000<?xml version="1.0" encoding="UTF-8"?>
+<Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-05-14 15:37:15">
+<OK/>
+</Server>
