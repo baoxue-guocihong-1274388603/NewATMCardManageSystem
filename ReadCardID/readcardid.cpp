@@ -1,19 +1,25 @@
 #include "readcardid.h"
-#define WITH_DEBUG1
+#include "ui_readcardid.h"
 
-ReadCardID::ReadCardID(QObject *parent) :
-    QObject(parent)
+ReadCardID::ReadCardID(QWidget *parent) :
+    QWidget(parent),
+    ui(new Ui::ReadCardID)
 {
+    ui->setupUi(this);
+
+    InitForm();
+
     WorkModeState = ReadCardID::StandbyWorkMode;
     TotalSwipCardCount = 0;
+    index = 1;
 
     OpenDevice();
 
     operate_camera = new OperateCamera(this);
 
     link_operate = new LinkOperate;
-//    link_operate->moveToThread(&link_operate_thread);
-//    link_operate_thread.start();
+    link_operate->moveToThread(&link_operate_thread);
+    link_operate_thread.start();
 
     quint32 MaxTime = CommonSetting::ReadSettings("/bin/config.ini","time/MaxTime").toUInt() * 1000;
     TimeOutClearTimer = new QTimer(this);
@@ -21,7 +27,7 @@ ReadCardID::ReadCardID(QObject *parent) :
     connect(TimeOutClearTimer,SIGNAL(timeout()),this,SLOT(slotClearAllRecord()));
 
     ReadCardIDTimer = new QTimer(this);
-    ReadCardIDTimer->setInterval(500);
+    ReadCardIDTimer->setInterval(300);
     connect(ReadCardIDTimer,SIGNAL(timeout()),this,SLOT(slotReadCardID()));
     ReadCardIDTimer->start();
 
@@ -33,6 +39,37 @@ ReadCardID::ReadCardID(QObject *parent) :
 ReadCardID::~ReadCardID()
 {
     ::close(WiegFd);
+    delete ui;
+}
+
+void ReadCardID::InitForm()
+{
+    this->setWindowFlags(Qt::FramelessWindowHint);
+    this->setAutoFillBackground(true);
+    QPalette palette;
+    palette.setBrush(QPalette::Background,QBrush(QPixmap("/bin/background.jpg")));
+    this->setPalette(palette);
+
+    first = new PersionInfoControl(this);
+    second = new PersionInfoControl(this);
+    third = new PersionInfoControl(this);
+    four = new PersionInfoControl(this);
+    five = new PersionInfoControl(this);
+    sex = new PersionInfoControl(this);
+
+    ui->gridLayout->addWidget(first,0,0);
+    ui->gridLayout->addWidget(second,0,1);
+    ui->gridLayout->addWidget(third,0,2);
+    ui->gridLayout->addWidget(four,1,0);
+    ui->gridLayout->addWidget(five,1,1);
+    ui->gridLayout->addWidget(sex,1,2);
+
+    list.append(first);
+    list.append(second);
+    list.append(third);
+    list.append(four);
+    list.append(five);
+    list.append(sex);
 }
 
 void ReadCardID::OpenDevice()
@@ -40,7 +77,6 @@ void ReadCardID::OpenDevice()
     WiegFd = open("/dev/s5pv210_wieg1",O_RDWR | O_NONBLOCK);//打开外部韦根设备文件
     if(WiegFd < 0){
         qDebug() << "cannot open device /dev/s5pv210_wieg1";
-        exit(EXIT_FAILURE);
     }
 }
 
@@ -87,36 +123,103 @@ void ReadCardID::slotReadCardID()
                 QString DirName = StrId.mid(1,StrId.length() - 2);
                 CommonSetting::CreateFolder("/opt",DirName);
 
-                QString Base64 = QString("/opt/Base64_") + CardID + QString("_") + TriggerTime.split(" ").at(0) + "\\ " + TriggerTime.split(" ").at(1) + QString(".txt");
+                QString Base64 = QString("/opt/Base64_") + CardID + QString("_") + TriggerTime + QString(".txt");
                 system(tr("mv %1 /opt/%2").arg(Base64).arg(DirName).toAscii().data());
-                system(tr("mv /opt/%1 /mnt").arg(DirName).toAscii().data());
+                system(tr("mv /opt/%1 /sdcard/log").arg(DirName).toAscii().data());
             }else if((ActionNum == "0")){//什么事情都不做
 
-            }else if((ActionNum == "1")){//切换工作模式为刷卡工作模式,并拍照、保存卡号和触发时间、启动清零定时器、自增刷卡次数
+            }else if((ActionNum == "1")){//切换工作模式为刷卡工作模式,并拍照、保存卡号和触发时间、启动清零定时器、自增刷卡次数,清除上次刷卡图片,显示该卡对应人员的姓名和卡号和卡类型和本地抓拍图片和证件图片
                 //设置为刷卡工作模式
                 link_operate->PowerLedTimer->stop();
                 link_operate->PowerLedOn();//电源指示灯常亮
                 WorkModeState = ReadCardID::SwipCardWorkMode;
 
                 operate_camera->StartCamera(CardID,TriggerTime);//启动摄像头拍照
-                CardIDList << CardID;//保存卡号和触发时间
-                TriggerTimeList << TriggerTime;
+                CardIDList << CardID;//保存卡号
+                TriggerTimeList << TriggerTime;//保存触发时间
 
                 //启动清零定时器、自增刷卡次数
                 TimeOutClearTimer->start();
                 TotalSwipCardCount++;
+
+                //清除上次刷卡图片
+                for(int i = 0; i < list.size(); i++){
+                    list.at(i)->ClearAll();
+                }
+
+                //显示该卡对应人员的姓名和卡号和卡类型和本地抓拍图片和证件图片
+                QString PersionName,PersionTypeID,PersionPicLocalUrl,PersionTypeName;
+
+                query.exec(tr("SELECT [姓名],[人员类型ID],[身份证图片本地路径] FROM [卡号信息表] WHERE [卡号] = \"%1\"").arg(CardID));
+                while(query.next()){
+                    PersionName = query.value(0).toString();
+                    PersionTypeID = query.value(1).toString().split(",").at(0);
+                    PersionPicLocalUrl = query.value(2).toString();
+                }
+
+                query.exec(tr("SELECT [人员类型名称] FROM [人员类型表] WHERE [人员类型ID] = \"%1\"").arg(PersionTypeID));
+                while(query.next()){
+                    PersionTypeName = query.value(0).toString();
+                }
+
+                first->SetText(PersionName + "\t" + CardID + "\t" + PersionTypeName);
+                first->ShowLocalSnapPic(tr("/opt/%1.jpg").arg(CardID));
+                first->ShowCertificatePic(PersionPicLocalUrl);
+
+                qDebug() << "PersionPicLocalUrl:" << PersionPicLocalUrl;
             }
         }
     }else if(WorkModeState == ReadCardID::SwipCardWorkMode){
-        operate_camera->StartCamera(CardID,TriggerTime);//启动摄像头拍照
-        CardIDList << CardID;//保存卡号和触发时间
-        TriggerTimeList << TriggerTime;
+        bool isDuplicate = false;
+        if(TotalSwipCardCount >= 2){//判断人员卡是否刷多次
+            if(CardIDList.join(",").mid(9).contains(CardID)){
+                isDuplicate = true;
+            }
+        }
+
+        //如果刷卡多次,则只保留最早一次刷卡记录
+        if(!isDuplicate){
+            operate_camera->StartCamera(CardID,TriggerTime);//启动摄像头拍照
+            CardIDList << CardID;//保存卡号和触发时间
+            TriggerTimeList << TriggerTime;
+
+            //显示该卡对应人员的姓名和卡号和卡类型和本地抓拍图片和证件图片,并且功能卡只显示第一张
+            if(!(CardIDList.at(0) == CardID)){
+                QString PersionName,PersionTypeID,PersionPicLocalUrl,PersionTypeName;
+
+                query.exec(tr("SELECT [姓名],[人员类型ID],[身份证图片本地路径] FROM [卡号信息表] WHERE [卡号] = \"%1\"").arg(CardID));
+                while(query.next()){
+                    PersionName = query.value(0).toString();
+                    PersionTypeID = query.value(1).toString().split(",").at(0);
+                    PersionPicLocalUrl = query.value(2).toString();
+                }
+
+                query.exec(tr("SELECT [人员类型名称] FROM [人员类型表] WHERE [人员类型ID] = \"%1\"").arg(PersionTypeID));
+                while(query.next()){
+                    PersionTypeName = query.value(0).toString();
+                }
+
+                list.at(index)->SetText(PersionName + "\t" + CardID + "\t" + PersionTypeName);
+                list.at(index)->ShowLocalSnapPic(tr("/opt/%1.jpg").arg(CardID));
+                list.at(index)->ShowCertificatePic(PersionPicLocalUrl);
+
+                qDebug() << "PersionPicLocalUrl:" << PersionPicLocalUrl;
+
+                index++;
+                if(index == 6){
+                    index = 0;
+                }
+            }
+        }
+
+        //自增刷卡次数
         TotalSwipCardCount++;
         if(TotalSwipCardCount > 10){
             qDebug() << "刷卡张数大于10张\n";
             slotClearAllRecord();
             return;
         }
+
         //比较当前功能卡是否和第一张功能卡是同一张
         if(CardIDList.at(0) == CardID){
             TimeOutClearTimer->stop();
@@ -132,22 +235,6 @@ void ReadCardID::slotReadCardID()
 void ReadCardID::ParseAllSwipCardRecord()
 {
     qDebug() << "进入解析刷卡记录";
-    qDebug() << "卡号过滤之前:" << CardIDList;
-    //除了第一张卡和最后一张卡之外,如果中间的卡号存在重复,则只保留一个卡号
-    for(int i = 1; i < CardIDList.count() - 1; i++){
-        for(int j = i + 1; j < CardIDList.count() - 1; j++){
-            if(CardIDList.at(i) == CardIDList.at(j)){
-                if(TriggerTimeList.at(i) != TriggerTimeList.at(j)){//用来过滤用户刷卡过快时同一张多次刷卡只保存了一张照片的情况
-                    system(tr("rm -rf \"/opt/Base64_%1_%2.txt\"").arg(CardIDList.at(j)).arg(TriggerTimeList.at(j)).toAscii().data());
-                }
-                CardIDList.removeAt(j);
-                TriggerTimeList.removeAt(j);
-                j--;
-            }
-        }
-    }
-    qDebug() << "卡号过滤之后:" << CardIDList;
-
     //获取卡类型
     int count = CardIDList.count();
     QStringList tempCardIDList = CardIDList;
@@ -192,7 +279,8 @@ void ReadCardID::ParseAllSwipCardRecord()
     while(query.next()){
         CardOrderList = query.value(0).toString().split(",");//需要满足的刷卡序列
     }
-    quint8 CardOrderArray[CardOrderList.count()];//将刷卡序列保存到数组中
+#if 0 //只要刷卡序列中包含本次刷卡需要满足的刷卡序列即可
+    quint8 CardOrderArray[CardOrderList.count()];//将需要满足的刷卡序列保存到数组中
     for(int i = 0; i < CardOrderList.count(); i++){
         CardOrderArray[i] = CardOrderList.at(i).toUInt();
     }
@@ -215,6 +303,49 @@ void ReadCardID::ParseAllSwipCardRecord()
     }else if(TotalSum == 0){
         CommonLinkOperateCode();
     }
+#else //本次刷卡序列必须和本次刷卡需要满足的刷卡序列完全相同
+    //判断本次刷卡序列的长度是否大于等于需要满足的刷卡序列长度
+    if(CardTypeList.size() - 1 < CardOrderList.size()){
+        qDebug() << "解析失败\n";
+        slotClearAllRecord();
+        return;
+    }
+
+    quint8 CardOrderArray[CardTypeList.count() - 1];//将本次刷卡刷卡序列保存到数组中
+    for(int i = 0; i < CardTypeList.count() - 1; i++){
+        CardOrderArray[i] = CardTypeList.at(i).toUInt();
+    }
+
+    //解析用户刷卡序列是否满足要求
+    for(int i = 0; i < CardOrderList.count(); i++){
+        for(int j = 0; j < CardTypeList.count() - 1; j++){
+            if(CardOrderList[i].toUInt() == CardOrderArray[j]){
+                CardOrderArray[j] = 0;
+                break;
+            }
+        }
+    }
+
+    quint8 TotalSum = 0;
+    for(int i = 0; i < CardTypeList.count() - 1; i++){
+        TotalSum += CardOrderArray[i];
+    }
+
+    //刷卡组合必须完全正确才能开锁，如果刷卡组合除了包含本次操作需要满足的刷卡序列，还包含其他卡号，则不能开锁，但是还是要上传记录。
+    if(TotalSum > 0){
+        qDebug() << "解析失败\n" << "TotalSum = " << TotalSum;
+        //移动/opt目录下的图片到/sdcard/log目录下
+        QString StrId = QUuid::createUuid().toString();
+        QString DirName = StrId.mid(1,StrId.length() - 2);
+        CommonSetting::CreateFolder("/opt",DirName);
+
+        system(tr("mv /opt/*.txt /opt/%1").arg(DirName).toAscii().data());
+        system(tr("mv /opt/%1 /sdcard/log").arg(DirName).toAscii().data());
+    }else if(TotalSum == 0){
+        CommonLinkOperateCode();
+    }
+
+#endif
     //不管刷卡组合是否解析成功,都要将所有刷卡记录删除
     slotClearAllRecord();
 }
@@ -230,14 +361,13 @@ void ReadCardID::CommonLinkOperateCode()
     link_operate->RelayPowerOn();
     link_operate->RelayTimer->start();
 
-    //移动/opt目录下的图片到/mnt目录下
+    //移动/opt目录下的图片到/sdcard/log目录下
     QString StrId = QUuid::createUuid().toString();
     QString DirName = StrId.mid(1,StrId.length() - 2);
     CommonSetting::CreateFolder("/opt",DirName);
 
-
     system(tr("mv /opt/*.txt /opt/%1").arg(DirName).toAscii().data());
-    system(tr("mv /opt/%1 /mnt").arg(DirName).toAscii().data());
+    system(tr("mv /opt/%1 /sdcard/log").arg(DirName).toAscii().data());
 }
 
 void ReadCardID::slotClearAllRecord()
@@ -247,10 +377,12 @@ void ReadCardID::slotClearAllRecord()
     link_operate->PowerLedTimer->start();
     WorkModeState = ReadCardID::StandbyWorkMode;
     TotalSwipCardCount = 0;
+    index = 1;
     CardIDList.clear();
     CardTypeList.clear();
     TriggerTimeList.clear();
 
     //添加删除刷卡记录代码
     system("rm -rf /opt/*.txt");
+    system("rm -rf /opt/*.jpg");
 }

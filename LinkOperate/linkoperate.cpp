@@ -1,23 +1,16 @@
 #include "linkoperate.h"
-#define WITH_DEBUG1
 
 LinkOperate::LinkOperate(QObject *parent) :
     QObject(parent)
 {
     OpenDevice();
 
-//    DoorTimer = new QTimer;
-//    DoorTimer->setInterval(1000);
-//    connect(DoorTimer,SIGNAL(timeout()),this,SLOT(slotDoorState()));
-//    //检测防拆是否被打开
-//    DoorTimer->start();
-
     BuzzerTimer = new QTimer;
-    BuzzerTimer->setInterval(5000);
+    BuzzerTimer->setInterval(8000);
     connect(BuzzerTimer,SIGNAL(timeout()),this,SLOT(slotBuzzerOff()));
 
     PowerLedTimer = new QTimer;
-    quint32 PowerLedTime = /*CommonSetting::ReadSettings("/bin/config.ini","time/PowerLedTime").toUInt()*/1 * 500;//电源指示灯闪烁频率
+    quint32 PowerLedTime = 500;//电源指示灯闪烁频率
     PowerLedTimer->setInterval(PowerLedTime);
     connect(PowerLedTimer,SIGNAL(timeout()),this,SLOT(slotPowerLedState()));
     PowerLedTimer->start();
@@ -30,7 +23,6 @@ LinkOperate::LinkOperate(QObject *parent) :
 
 LinkOperate::~LinkOperate()
 {
-//    delete DoorTimer;
     delete BuzzerTimer;
     delete PowerLedTimer;
     delete RelayTimer;
@@ -38,44 +30,20 @@ LinkOperate::~LinkOperate()
 
 void LinkOperate::OpenDevice()
 {
-    DoorFd = open("/dev/s5pv210_door",O_RDWR);
-    if(DoorFd == -1){
-        qDebug() << "/dev/s5pv210_door failed.Exit the Program";
-        exit(0);
-    }
 
     BuzzerFd = open("/dev/s5pv210_buzzer",O_RDWR);
     if(BuzzerFd == -1){
         qDebug() << "/dev/s5pv210_buzzer failed.Exit the Program";
-        exit(0);
     }
 
-    PowerLedFd = open("/dev/s5pv210_power_led",O_RDWR);
+    PowerLedFd = open("/dev/s5pv210_led",O_RDWR);
     if(PowerLedFd == -1){
         qDebug() << "/dev/s5pv210_led failed.Exit the Program";
-        exit(0);
     }
 
     RelayFd = open("/dev/s5pv210_relay",O_RDWR);
     if(RelayFd == -1){
         qDebug() << "/dev/s5pv210_relay failed.Exit the Program";
-        exit(0);
-    }
-}
-
-void LinkOperate::slotDoorState()
-{
-    char DoorState;
-    static bool isAlarm = false;
-
-    read(DoorFd,&DoorState,1);
-    if(DoorState != 0 && !isAlarm){
-        this->BuzzerOn();
-        QTimer::singleShot(60*1000,this,SLOT(slotBuzzerOff()));
-        isAlarm = true;
-    }else if(DoorState == 0 && isAlarm){
-        this->slotBuzzerOff();
-        isAlarm = false;
     }
 }
 
@@ -89,7 +57,12 @@ void LinkOperate::slotPowerLedState()
 {
     static bool flag = true;
     flag = !flag;
+#ifdef USES_SHUAKAJI_WAIKE  //如果用的是刷卡机外壳
     ioctl(PowerLedFd,flag ? 1 : 0);
+#endif
+#ifdef USES_JIAYOUZHAN_WAIKE//如果用的是加油站外壳
+    ioctl(PowerLedFd,flag ? 5 : 11);
+#endif
 }
 
 void LinkOperate::slotRelayPowerOff()
@@ -105,7 +78,12 @@ void LinkOperate::BuzzerOn()
 
 void LinkOperate::PowerLedOn()
 {
+#ifdef USES_SHUAKAJI_WAIKE  //如果用的是刷卡机外壳
     ioctl(PowerLedFd,1);
+#endif
+#ifdef USES_JIAYOUZHAN_WAIKE//如果用的是加油站外壳
+    ioctl(PowerLedFd,5);
+#endif
 }
 
 void LinkOperate::RelayPowerOn()

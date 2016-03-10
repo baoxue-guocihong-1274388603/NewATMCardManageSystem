@@ -9,6 +9,7 @@ class TcpCommunicate : public QObject
 public:
     explicit TcpCommunicate(QObject *parent = 0);
     void slotGetCardTypeName();
+    void slotGetCardInfo();
     void slotOperationCmd();
     void SendDataPackage(QString PathPrefix, QString CardID, QString TriggerTime);
     void SendCommonCode(QString MessageMerge);
@@ -26,10 +27,14 @@ public slots:
     void slotDisplayError(QAbstractSocket::SocketError socketError);
     void slotSendLogInfo(QString info);//用来上传刷卡记录
 
+signals:
+    void signalGetCardInfo();
+
 public:
     enum SendMsgType{
         DeviceHeart,//设备心跳
         GetCardTypeName,//获取卡类型
+        GetCardInfo,//获取卡号详细信息
         OperationCmd//加钞,巡检,接警
     };
     volatile enum SendMsgType SendMsgTypeFlag;
@@ -54,6 +59,7 @@ public:
     QSqlQuery query;
     volatile bool isGetCardIDList;
     volatile bool isGetCardOrderList;
+    volatile bool isGetCardDetailInfo;
 
     QString ServerIpAddress;
     QString ServerListenPort;

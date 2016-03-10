@@ -17,6 +17,9 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+#define USES_SHUAKAJI_WAIKE
+//#define USES_JIAYOUZHAN_WAIKE
+
 class LinkOperate : public QObject
 {
     Q_OBJECT
@@ -29,18 +32,15 @@ public:
     void RelayPowerOn();
 
 public slots:
-    void slotDoorState();
     void slotBuzzerOff();
     void slotPowerLedState();
     void slotRelayPowerOff();
 
 public:
-    int DoorFd;//防拆开关
     int BuzzerFd;//蜂鸣器
     int PowerLedFd;//电源指示灯
     int RelayFd;//开关量
 
-    QTimer *DoorTimer;
     QTimer *BuzzerTimer;
     QTimer *PowerLedTimer;
     QTimer *RelayTimer;//用来控制继电器

@@ -7,6 +7,7 @@ TcpCommunicate::TcpCommunicate(QObject *parent) :
 {
     isGetCardIDList = false;
     isGetCardOrderList = false;
+    isGetCardDetailInfo = false;
 
     tcpSocket = new QTcpSocket(this);
     connect(tcpSocket,SIGNAL(readyRead()),
@@ -41,11 +42,11 @@ TcpCommunicate::TcpCommunicate(QObject *parent) :
 
     HeartTimer->start();
     GetCardIDListTimer->start();
-//    CheckNetWorkTimer->start();
+    //    CheckNetWorkTimer->start();
 
-    //创建一个监视器，用于监视目录/mnt的变化
+    //创建一个监视器，用于监视目录/sdcard/log的变化
     dirWatcher = new QFileSystemWatcher(this);
-    dirWatcher->addPath("/mnt");
+    dirWatcher->addPath("/sdcard/log");
     connect(dirWatcher,SIGNAL(directoryChanged(QString)), this,SLOT(slotSendLogInfo(QString)));
 }
 
@@ -54,16 +55,24 @@ void TcpCommunicate::slotSendHeartData()
     SendMsgTypeFlag = TcpCommunicate::DeviceHeart;
     SendDataPackage("","","");
 
-    CommonSetting::Sleep(1000);
+    CommonSetting::Sleep(1500);
     slotGetCardTypeName();
-    CommonSetting::Sleep(1000);
 
+    CommonSetting::Sleep(1500);
+    slotGetCardInfo();
+
+    CommonSetting::Sleep(3000);
     tcpSocket->disconnectFromHost();
     tcpSocket->abort();
 }
 
 void TcpCommunicate::slotGetIDList()
 {
+    static char count = 0;
+
+    tcpSocket->disconnectFromHost();
+    tcpSocket->abort();
+
     if(!isGetCardIDList){
         SendMsgTypeFlag = TcpCommunicate::DeviceHeart;
         SendDataPackage("","","");
@@ -72,9 +81,22 @@ void TcpCommunicate::slotGetIDList()
         SendMsgTypeFlag = TcpCommunicate::GetCardTypeName;
         SendDataPackage("","","");
         qDebug() << "isGetCardOrderList";
+    }else if(!isGetCardDetailInfo){
+        SendMsgTypeFlag = TcpCommunicate::GetCardInfo;
+        SendDataPackage("","","");
+        qDebug() << "isGetCardDetailInfo";
     }else{
         GetCardIDListTimer->stop();
         CommonSetting::Sleep(1000);
+        tcpSocket->disconnectFromHost();
+        tcpSocket->abort();
+        qDebug() << "stop GetCardIDListTimer";
+    }
+
+    count++;
+    if(count == 10){
+        count = 0;
+        GetCardIDListTimer->stop();
         tcpSocket->disconnectFromHost();
         tcpSocket->abort();
         qDebug() << "stop GetCardIDListTimer";
@@ -85,6 +107,13 @@ void TcpCommunicate::slotGetIDList()
 void TcpCommunicate::slotGetCardTypeName()
 {
     SendMsgTypeFlag = TcpCommunicate::GetCardTypeName;
+    SendDataPackage("","","");
+}
+
+//这样命令仅仅只是为了方便
+void TcpCommunicate::slotGetCardInfo()
+{
+    SendMsgTypeFlag = TcpCommunicate::GetCardInfo;
     SendDataPackage("","","");
 }
 
@@ -100,12 +129,11 @@ void TcpCommunicate::slotCheckNetWorkState()
 
 void TcpCommunicate::slotParseServerMessage()
 {
-//    CommonSetting::Sleep(300);
-    usleep(300 * 1000);
+    CommonSetting::Sleep(600);
     QByteArray data = tcpSocket->readAll();
     QString XmlData = QString(data).mid(20);
-#if defined(WITH_WRITE_FILE)
-    CommonSetting::WriteXmlFile("/bin/TcpReceiveMessage.txt",XmlData);
+#if defined(WITH_WRITE_FILE1)
+//    CommonSetting::WriteXmlFile("/bin/TcpReceiveMessage.txt",XmlData);
 #endif
     ParseServerMessage(XmlData);//解析服务返回信息
 }
@@ -119,12 +147,14 @@ void TcpCommunicate::ParseServerMessage(QString XmlData)
             ,LatestCardStatusList,LatestCardValidTimeList;//下载最新的卡号信息
     QStringList CurrentCardIDList,CurrentCardTypeList
             ,CurrentCardStatusList,CurrentCardValidTimeList;//发送日志信息，服务器返回卡号的当前信息
+    QStringList CardNumberList,PersionNameList,PersionPicUrlList,PersionTypeIDList;
+    static uint index = 0;
 
     int errorLine,errorColumn;
-    bool CaptionFlag = false,CardStateFlag = false;
+    bool CaptionFlag = false,CardStateFlag = false,ICard = false;
 
     if(!dom.setContent(XmlData,&errorMsg,&errorLine,&errorColumn)){
-#if  defined(WITH_DEBUG)
+#if  defined(WITH_DEBUG1)
         qDebug() << "Parse error at line " << errorLine <<","<< "column " << errorColumn << ","<< errorMsg;
 #endif
         return;
@@ -195,24 +225,73 @@ void TcpCommunicate::ParseServerMessage(QString XmlData)
                     QString ActionNum = FunctionList.at(i).split(",").at(2).split("#").at(0);//动作号
                     QString CardOrder = FunctionList.at(i).split("#").at(1);//刷卡序列
                     query.exec(tr("INSERT INTO [功能表] ([功能号], [动作号],[刷卡序列]) VALUES (\"%1\",\"%2\",\"%3\");").arg(FunctionNum).arg(ActionNum).arg(CardOrder));
-//                    qDebug() << query.lastError().text();
+                    //                    qDebug() << query.lastError().text();
                 }
                 // 提交事务，这个时候才是真正打开文件执行SQL语句的时候
                 QSqlDatabase::database().commit();
+            }else if(firstChildNode.nodeName() == "PersonTypeName"){
+                qDebug() << "PersonTypeName";
+                isGetCardOrderList = true;
+                QDomElement firstChildElement =
+                        firstChildNode.toElement();
+                QString firstChildElementText =
+                        firstChildElement.text();
+                QStringList PersonTypeNameList =
+                        firstChildElementText.split(";");
+                // 开始启动事务
+                QSqlDatabase::database().transaction();
+
+                query.exec("delete from [人员类型表]");
+                for(int i = 0; i < PersonTypeNameList.count();  i++){
+                    QString PersionTypeID = PersonTypeNameList.at(i).split(",").at(1);//人员类型ID
+                    QString PersionTypeName = PersonTypeNameList.at(i).split(",").at(2);//人员类型名称
+                    query.exec(tr("INSERT INTO [人员类型表] ([人员类型ID], [人员类型名称]) VALUES (\"%1\",\"%2\");").arg(PersionTypeID).arg(PersionTypeName));
+                    //                    qDebug() << query.lastError().text();
+                }
+                // 提交事务，这个时候才是真正打开文件执行SQL语句的时候
+                QSqlDatabase::database().commit();
+            }else if(firstChildNode.nodeName() == "ICard"){
+                qDebug() << "ICard";
+                isGetCardDetailInfo = true;
+                ICard = true;
+                QDomElement firstChildElement = firstChildNode.toElement();
+
+                CardNumberList << firstChildElement.attributeNode("Number").value();
+                PersionNameList << QString("");
+                PersionPicUrlList << QString("");
+                PersionTypeIDList << QString("");//主要用来保证他们的长度是一样
+
+                QDomNodeList SubChildNodeList = firstChildElement.childNodes(); //获得元素的所有子节点的列表
+                for(int i = 0; i < SubChildNodeList.size(); i++){
+                    QDomElement e = SubChildNodeList.at(i).toElement();
+                    if(e.attributeNode("Value").value() == QString("姓名")){
+                        PersionNameList.replace(index,e.text());
+                    }
+
+                    if(e.attributeNode("Value").value() == QString("_PicUrl")){
+                        PersionPicUrlList.replace(index,e.text());
+                    }
+
+                    if(e.nodeName() == QString("Function")){
+                        PersionTypeIDList.replace(index,e.text());
+                    }
+                }
+                index++;
             }
+
             firstChildNode =
                     firstChildNode.nextSibling();//下一个节点
         }
         if(CaptionFlag){
-        isGetCardIDList = true;
-        CommonSetting::WriteSettings("/bin/config.ini","time/CardListUpTime",CardListUpTime);
+            isGetCardIDList = true;
+            CommonSetting::WriteSettings("/bin/config.ini","time/CardListUpTime",CardListUpTime);
             // 开始启动事务
             QSqlDatabase::database().transaction();
             query.exec("delete from [卡号表]");//将原有卡号列表删除，重新下载最新卡号列表
             for(int i = 0; i < LatestCardIDList.count(); i++){
                 query.exec(tr("INSERT INTO [卡号表] ([卡号], [功能号], [状态], [有效期限]) VALUES (\"%1\",\"%2\",\"%3\",\"%4\");")
                            .arg(LatestCardIDList.at(i)).arg(LatestCardTypeList.at(i)).arg(LatestCardStatusList.at(i)).arg(LatestCardValidTimeList.at(i)));
-//                qDebug() << query.lastError().text();
+                //                qDebug() << query.lastError().text();
             }
             // 提交事务，这个时候才是真正打开文件执行SQL语句的时候
             QSqlDatabase::database().commit();
@@ -224,10 +303,29 @@ void TcpCommunicate::ParseServerMessage(QString XmlData)
             for(int i = 0; i < CurrentCardIDList.count(); i++){
                 query.exec(tr("UPDATE [卡号表] SET [功能号] = \"%1\", [状态] = \"%2\", [有效期限] = \"%3\" WHERE [卡号] = \"%4\"")
                            .arg(CurrentCardTypeList.at(i)).arg(CurrentCardStatusList.at(i)).arg(CurrentCardValidTimeList.at(i)).arg(CurrentCardIDList.at(i)));
-//                qDebug() << query.lastError().text();
+                //                qDebug() << query.lastError().text();
             }
             // 提交事务，这个时候才是真正打开文件执行SQL语句的时候
             QSqlDatabase::database().commit();
+        }
+
+
+        if(ICard){
+            qDebug() << "size = " << CardNumberList.size() << PersionNameList.size() << PersionTypeIDList.size() << PersionPicUrlList.size();
+            index = 0;
+            // 开始启动事务
+            QSqlDatabase::database().transaction();
+            query.exec("delete from [卡号信息表]");
+            for(int i = 0; i < CardNumberList.count(); i++){
+                query.exec(tr("INSERT INTO [卡号信息表] ([卡号], [姓名], [人员类型ID], [身份证图片网址]) VALUES (\"%1\",\"%2\",\"%3\",\"%4\");")
+                           .arg(CardNumberList.at(i)).arg(PersionNameList.at(i)).arg(PersionTypeIDList.at(i)).arg(PersionPicUrlList.at(i)));
+                //                qDebug() << query.lastError().text();
+            }
+            // 提交事务，这个时候才是真正打开文件执行SQL语句的时候
+            QSqlDatabase::database().commit();
+
+            CommonSetting::WriteCommonFileTruncate("/bin/GetCardDetialInfo.txt","OK");
+            emit signalGetCardInfo();
         }
     }
 }
@@ -297,7 +395,7 @@ void TcpCommunicate::SendDataPackage(QString PathPrefix,QString CardID,QString T
         //创建第一个子元素
         QDomElement firstChildElement = dom.createElement("DeviceHeart");
         firstChildElement.setAttribute("State","1");
-//        firstChildElement.setAttribute("CardListUpTime",CardListUpTime);
+        //        firstChildElement.setAttribute("CardListUpTime",CardListUpTime);
         firstChildElement.setAttribute("CardListUpTime","2012-01-01 00:00:00");
 
         //将元素添加到根元素后面
@@ -306,6 +404,22 @@ void TcpCommunicate::SendDataPackage(QString PathPrefix,QString CardID,QString T
         //创建第一个子元素
         QDomElement firstChildElement =
                 dom.createElement("GetCardTypeName");
+        //将元素添加到根元素后面
+        RootElement.appendChild(firstChildElement);
+    }else if(SendMsgTypeFlag == TcpCommunicate::GetCardInfo){
+        //创建第一个子元素
+        QDomElement firstChildElement =
+                dom.createElement("GetCardInfo");
+
+        QStringList id_list;
+        query.exec(tr("SELECT [卡号] FROM [卡号表]"));
+        while(query.next()){
+            id_list << query.value(0).toString();
+        }
+
+        QDomText firstChildElementText = dom.createTextNode(id_list.join(","));
+        firstChildElement.appendChild(firstChildElementText);
+
         //将元素添加到根元素后面
         RootElement.appendChild(firstChildElement);
     }else if(SendMsgTypeFlag == TcpCommunicate::OperationCmd){
@@ -324,12 +438,12 @@ void TcpCommunicate::SendDataPackage(QString PathPrefix,QString CardID,QString T
             firstChildElement.setAttribute("Type",CardType);
             firstChildElement.setAttribute("CardID",CardIDList.at(i));
             firstChildElement.setAttribute("TriggerTime",TriggerTimeList.at(i));
-            QString fileName = PathPrefix + "Base64_" + CardIDList.at(i) + "_" + TriggerTimeList.at(i) + ".txt";
-            QString imgBase64 =
-                    CommonSetting::ReadFile(fileName);
+            QString fileName = PathPrefix + "Base64_" + CardIDList.at(i) + "_" + TriggerTimeList.at(i).split(" ").at(0) + "_" + TriggerTimeList.at(i).split(" ").at(1).split(":").join("-") + ".txt";
+            qDebug() << fileName;
+            QString imgBase64 = CommonSetting::ReadFile(fileName);
             if(!imgBase64.isEmpty()){
                 QDomText firstChildElementText =
-                    dom.createTextNode(imgBase64);//base64图片数据
+                        dom.createTextNode(imgBase64);//base64图片数据
                 firstChildElement.appendChild(firstChildElementText);
             }
             //将元素添加到根元素后面
@@ -350,7 +464,7 @@ void TcpCommunicate::SendCommonCode(QString MessageMerge)
 {    
     if(ConnectStateFlag == TcpCommunicate::ConnectedState){
         tcpSocket->write(MessageMerge.toAscii());
-        if(tcpSocket->waitForBytesWritten(1000)){
+        if(tcpSocket->waitForBytesWritten(3000)){
             DataSendStateFlag = TcpCommunicate::SendSucceed;
             PareseSendMsgType();
         }
@@ -364,7 +478,7 @@ void TcpCommunicate::SendCommonCode(QString MessageMerge)
             CommonSetting::Sleep(1000);
             if(ConnectStateFlag == TcpCommunicate::ConnectedState){
                 tcpSocket->write(MessageMerge.toAscii());
-                if(tcpSocket->waitForBytesWritten(1000)){
+                if(tcpSocket->waitForBytesWritten(3000)){
                     DataSendStateFlag = TcpCommunicate::SendSucceed;
                     PareseSendMsgType();
                 }
@@ -384,6 +498,8 @@ void TcpCommunicate::PareseSendMsgType()
         qDebug() << "Tcp:Send DeviceHeart Succeed";
     }else if(SendMsgTypeFlag == TcpCommunicate::GetCardTypeName){
         qDebug() << "Tcp:Send GetCardTypeName Succeed";
+    }else if(SendMsgTypeFlag == TcpCommunicate::GetCardInfo){
+        qDebug() << "Tcp:Send GetCardInfo Succeed";
     }else if(SendMsgTypeFlag == TcpCommunicate::OperationCmd){
         qDebug() << "Tcp:Picture CardID Already Succeed Send";
     }
@@ -391,7 +507,8 @@ void TcpCommunicate::PareseSendMsgType()
 
 void TcpCommunicate::slotSendLogInfo(QString info)
 {
-    dirWatcher->removePath("/mnt");
+    dirWatcher->removePath("/sdcard/log");
+    CommonSetting::Sleep(3000);
 
     tcpSocket->connectToHost(ServerIpAddress,ServerListenPort.toUInt());
     tcpSocket->waitForConnected();
@@ -401,22 +518,23 @@ void TcpCommunicate::slotSendLogInfo(QString info)
     char txFailedCount = 0;//用来统计发送失败次数
     char txSucceedCount = 0;//用来统计发送成功的次数
 
-    QStringList dirlist = CommonSetting::GetDirNames("/mnt");
+    QStringList dirlist = CommonSetting::GetDirNames("/sdcard/log");
     if(!dirlist.isEmpty()){
         foreach(const QString &dirName,dirlist){
             QStringList filelist =
-                    CommonSetting::GetFileNames("/mnt/" + dirName,"*.txt");
+                    CommonSetting::GetFileNames("/sdcard/log/" + dirName,"*.txt");
+            qDebug() << "filelist:" << filelist;
             if(!filelist.isEmpty()){
                 foreach(const QString &fileName,filelist){
                     tempCardIDList << fileName.split("_").at(1);
-                    QString temp = fileName.split("_").at(2);
-                    tempTriggerTimeList << temp.split(".").at(0);
+                    tempTriggerTimeList << fileName.split("_").at(2) + " " + fileName.split("_").at(3).split(".").at(0).split("-").join(":");
                 }
+                qDebug() << "tempCardIDList:" << tempCardIDList.join(",");
                 SendMsgTypeFlag = TcpCommunicate::OperationCmd;
-                SendDataPackage(QString("/mnt/") + dirName + QString("/"),tempCardIDList.join(","),tempTriggerTimeList.join(","));
+                SendDataPackage(QString("/sdcard/log/") + dirName + QString("/"),tempCardIDList.join(","),tempTriggerTimeList.join(","));
                 //日志信息发送成功:删除本地记录
                 if(DataSendStateFlag == TcpCommunicate::SendSucceed){
-                    system(tr("rm -rf /mnt/%1").arg(dirName).toAscii().data());
+                    system(tr("rm -rf /sdcard/log/%1").arg(dirName).toAscii().data());
                     txSucceedCount++;
                     if(txSucceedCount == 5){
                         break;
@@ -439,5 +557,6 @@ void TcpCommunicate::slotSendLogInfo(QString info)
     tcpSocket->disconnectFromHost();
     tcpSocket->abort();
 
-    dirWatcher->addPath("/mnt");
+    dirWatcher->addPath("/sdcard/log");
 }
+

@@ -1,7 +1,11 @@
 #include "listenserialthread.h"
 
 static char SmartUSBPreState[] = {0,0,0,0,0,0,0,0};//用来保存SmartUSB设备上一次的状态:0不报警,1报警
+static qint8 PreSmartUSBNum = 0;//用来保存上一次SmartUSB设备的个数
 static qint8 SmartUSBNum = CommonSetting::ReadSettings("/bin/config.ini","SmartUSB/Num").toInt();//SmartUSB设备的个数
+
+//0xFA 0xFD {id} 0xFF 发送
+//0x0D 0x0A {id} {USB State}{Alarm State} 0x0F 返回
 
 ListenSerialThread::ListenSerialThread(QObject *parent) :
     QObject(parent)
@@ -28,13 +32,20 @@ ListenSerialThread::ListenSerialThread(QObject *parent) :
             this,SLOT(slotEstablishConnection()));
     connect(tcpSocket,SIGNAL(error(QAbstractSocket::SocketError)),this,SLOT(slotDisplayError(QAbstractSocket::SocketError)));
 
-    ReadSmartUSBStateTimer = new QTimer(this);
-    ReadSmartUSBStateTimer->setInterval(SmartUSBNum * 1500);
-    connect(ReadSmartUSBStateTimer,SIGNAL(timeout()),this,SLOT(PollingReadSmartUSBState()));
-    ReadSmartUSBStateTimer->start();
+    if(SmartUSBNum > 0){
+        ReadSmartUSBStateTimer = new QTimer(this);
+        ReadSmartUSBStateTimer->setInterval(3000);
+        connect(ReadSmartUSBStateTimer,SIGNAL(timeout()),this,SLOT(slotPollingReadSmartUSBState()));
+        ReadSmartUSBStateTimer->start();
+
+        SendAlarmMsgTimer = new QTimer(this);
+        SendAlarmMsgTimer->setInterval(3000);
+        connect(SendAlarmMsgTimer,SIGNAL(timeout()),this,SLOT(slotSendCommonCode()));
+        SendAlarmMsgTimer->start();
+    }
 }
 
-void ListenSerialThread::PollingReadSmartUSBState()
+void ListenSerialThread::slotPollingReadSmartUSBState()
 {
     char ControlCode[] = {0xFA,0xFD,0,0xFF};
 
@@ -42,11 +53,41 @@ void ListenSerialThread::PollingReadSmartUSBState()
         ControlCode[2] = i;
         mySerial->write(ControlCode,4);
         QString SmartUSB = ReadSerial();
+		
         if(!SmartUSB.isEmpty()){
-            if((SmartUSB.split(" ").at(0) == "0D") && (SmartUSB.split(" ").at(1) == "0A") && (SmartUSB.split(" ").at(5) == "0F")){
-                qint8 SmartUSBId = SmartUSB.split(" ").at(2).toInt();
-                qint8 SmartUSBState = SmartUSB.split(" ").at(3).toInt();
-                qint8 SmartUSBAlarmState = SmartUSB.split(" ").at(4).toInt();
+			//0x0D 0x0A {id} {USB State}{Alarm State} 0x0F
+            qint8 len = SmartUSB.split(" ").size();
+			if (len < 6) {
+				continue;
+			}
+			
+			qint8 index = 0;
+            while(index < len){
+                if(SmartUSB.split(" ").at(index) == "0D"){
+                    break;
+                }
+                index++;
+            }
+
+            if(index == len){
+                continue;
+            }
+
+            if((SmartUSB.split(" ").at(index) == "0D") && (SmartUSB.split(" ").at(index + 1) == "0A") && (SmartUSB.split(" ").at(index + 5) == "0F")){
+                qint8 SmartUSBId = SmartUSB.split(" ").at(index + 2).toInt();
+                qint8 SmartUSBState = SmartUSB.split(" ").at(index + 3).toInt();
+                qint8 SmartUSBAlarmState = SmartUSB.split(" ").at(index + 4).toInt();
+                if(PreSmartUSBNum < SmartUSBState){
+                    //只要有设备插入,就上传记录,不管是否报警和报警解除
+                    QString CardID = QString::number(SmartUSBId) + QString(",") + QString::number(SmartUSBState) + QString(",") + QString::number(SmartUSBAlarmState);
+                    QString TriggerTime =
+                            CommonSetting::GetCurrentDateTime();
+                    SendMsgTypeFlag =
+                            ListenSerialThread::SmartUSBNewInsert;
+                    SendDataPackage(CardID,TriggerTime);
+                    qDebug() << "设备ID:" << SmartUSBId <<"\n";
+                }
+
                 if((SmartUSBPreState[SmartUSBId] == 0) && (SmartUSBAlarmState == 1)){//报警
                     SmartUSBPreState[SmartUSBId] = 1;
                     QString CardID = QString::number(SmartUSBId) + QString(",") + QString::number(SmartUSBState) + QString(",") + QString::number(SmartUSBAlarmState);
@@ -63,20 +104,18 @@ void ListenSerialThread::PollingReadSmartUSBState()
                             CommonSetting::GetCurrentDateTime();
                     SendMsgTypeFlag = ListenSerialThread::SmartUSBDeassertState;
                     SendDataPackage(CardID,TriggerTime);
-                    qDebug() << "报警解除设备ID:" << SmartUSBId << "\n" ;
+                    qDebug() << "报警解除设备ID:" << SmartUSBId << "\n";
                 }
+
+                PreSmartUSBNum = SmartUSBState;
             }
         }
-//        CommonSetting::Sleep(800);
-        usleep(400 * 1000);
-        usleep(400 * 1000);
     }
 }
 
 QString ListenSerialThread::ReadSerial()
 {
-//    CommonSetting::Sleep(100);
-    usleep(200 * 1000);
+    CommonSetting::Sleep(100);
 
     QString strHex,RetValue;
     QByteArray Buffer = mySerial->readAll();
@@ -175,62 +214,79 @@ void ListenSerialThread::SendDataPackage(QString CardID,QString TriggerTime)
 
         //将元素添加到根元素后面
         RootElement.appendChild(firstChildElement);
+    }else if(SendMsgTypeFlag ==
+             ListenSerialThread::SmartUSBNewInsert){
+        //创建第一个子元素
+        QDomElement firstChildElement =
+                dom.createElement("OperationCmd");
+        firstChildElement.setAttribute("Type","80003");
+        firstChildElement.setAttribute("CardID",CardID);
+        firstChildElement.setAttribute("TriggerTime",TriggerTime);
+
+        //将元素添加到根元素后面
+        RootElement.appendChild(firstChildElement);
     }
 
     QTextStream Out(&MessageMerge);
     dom.save(Out,4);
 
     MessageMerge = CommonSetting::AddHeaderByte(MessageMerge);
-//    CommonSetting::WriteCommonFile("/bin/TcpSendMessage.txt",MessageMerge);
-    SendCommonCode(MessageMerge);
+    //    CommonSetting::WriteCommonFile("/bin/TcpSendMessage.txt",MessageMerge);
+    AlarmMsgBuffer.append(MessageMerge);
 }
 
 //tcp短连接
-void ListenSerialThread::SendCommonCode(QString MessageMerge)
+void ListenSerialThread::slotSendCommonCode()
 {
-    tcpSocket->connectToHost(ServerIpAddress,ServerListenPort.toUInt());
-    CommonSetting::Sleep(1000);
+    if(AlarmMsgBuffer.size() > 0){
+        tcpSocket->connectToHost(ServerIpAddress,ServerListenPort.toUInt());
+        CommonSetting::Sleep(1000);
 
-    if(ConnectStateFlag == ListenSerialThread::ConnectedState){
-        tcpSocket->write(MessageMerge.toAscii());
-        if(tcpSocket->waitForBytesWritten(1000)){
-            if(SendMsgTypeFlag ==
-                    ListenSerialThread::SmartUSBAlarmState){
-                qDebug() << "SmartUSB设备报警记录上传成功";
-            }else if(SendMsgTypeFlag ==
-                     ListenSerialThread::SmartUSBDeassertState){
-                qDebug() << "SmartUSB设备报警解除记录上传成功";
-            }
-        }
-        tcpSocket->disconnectFromHost();
-        tcpSocket->abort();
-        return;
-    }else if(ConnectStateFlag == ListenSerialThread::DisConnectedState){
-        tcpSocket->disconnectFromHost();
-        tcpSocket->abort();
-        for(qint8 i = 0; i < 3; i++){
-            tcpSocket->connectToHost(ServerIpAddress,
-                                     ServerListenPort.toUInt());
-            CommonSetting::Sleep(1000);
-            if(ConnectStateFlag == ListenSerialThread::ConnectedState){
-                tcpSocket->write(MessageMerge.toAscii());
-                if(tcpSocket->waitForBytesWritten(1000)){
-                    if(SendMsgTypeFlag ==ListenSerialThread::SmartUSBAlarmState){
-                        qDebug() << "SmartUSB设备报警记录上传成功";
-                    }else if(SendMsgTypeFlag == ListenSerialThread::SmartUSBDeassertState){
-                        qDebug() << "SmartUSB设备报警解除记录上传成功";
-                    }
+        if(ConnectStateFlag == ListenSerialThread::ConnectedState){
+            tcpSocket->write(AlarmMsgBuffer.takeFirst().toAscii());
+            if(tcpSocket->waitForBytesWritten(1000)){
+                if(SendMsgTypeFlag ==
+                        ListenSerialThread::SmartUSBAlarmState){
+                    qDebug() << "SmartUSB设备报警记录上传成功";
+                }else if(SendMsgTypeFlag ==
+                         ListenSerialThread::SmartUSBDeassertState){
+                    qDebug() << "SmartUSB设备报警解除记录上传成功";
+                }else if(SendMsgTypeFlag == ListenSerialThread::SmartUSBNewInsert){
+                    qDebug() << "SmartUSB有新设备插入记录上传成功";
                 }
-
-                tcpSocket->disconnectFromHost();
-                tcpSocket->abort();
-                return;
             }
             tcpSocket->disconnectFromHost();
             tcpSocket->abort();
+            return;
+        }else if(ConnectStateFlag == ListenSerialThread::DisConnectedState){
+            tcpSocket->disconnectFromHost();
+            tcpSocket->abort();
+            for(qint8 i = 0; i < 3; i++){
+                tcpSocket->connectToHost(ServerIpAddress,
+                                         ServerListenPort.toUInt());
+                CommonSetting::Sleep(1000);
+                if(ConnectStateFlag == ListenSerialThread::ConnectedState){
+                    tcpSocket->write(AlarmMsgBuffer.takeFirst().toAscii());
+                    if(tcpSocket->waitForBytesWritten(1000)){
+                        if(SendMsgTypeFlag ==ListenSerialThread::SmartUSBAlarmState){
+                            qDebug() << "SmartUSB设备报警记录上传成功";
+                        }else if(SendMsgTypeFlag == ListenSerialThread::SmartUSBDeassertState){
+                            qDebug() << "SmartUSB设备报警解除记录上传成功";
+                        }else if(SendMsgTypeFlag == ListenSerialThread::SmartUSBNewInsert){
+                            qDebug() << "SmartUSB有新设备插入记录上传成功";
+                        }
+                    }
+
+                    tcpSocket->disconnectFromHost();
+                    tcpSocket->abort();
+                    return;
+                }
+                tcpSocket->disconnectFromHost();
+                tcpSocket->abort();
+            }
+            qDebug() << "上传失败:与服务器连接未成功。请检查网线是否插好,本地网络配置,服务器IP,服务器监听端口配置是否正确.\n";
+            tcpSocket->disconnectFromHost();
+            tcpSocket->abort();
         }
-        qDebug() << "上传失败:与服务器连接未成功。请检查网线是否插好,本地网络配置,服务器IP,服务器监听端口配置是否正确.\n";
-        tcpSocket->disconnectFromHost();
-        tcpSocket->abort();
     }
 }

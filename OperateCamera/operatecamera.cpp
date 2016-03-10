@@ -12,6 +12,8 @@ OperateCamera::OperateCamera(QObject *parent) :
     QueryDeviceCapability();
     SetPictureFormat();
     RequestBuffer();
+    StartCamera("first","cardid");
+    system("rm -rf /opt/Base64_first_cardid.txt");
 }
 
 OperateCamera::~OperateCamera()
@@ -34,7 +36,6 @@ void OperateCamera::OpenDevice()
 #if  defined(WITH_DEBUG)
         qDebug() << QString("cannot open device %s\n").arg(VideoDeviceName);
 #endif
-        exit(EXIT_FAILURE);
     }
 }
 
@@ -277,7 +278,7 @@ void OperateCamera::StartCamera(QString CardID,QString TriggerTime)
     QByteArray tempData;
     QBuffer tempBuffer(&tempData);
     image_rgb565.save(&tempBuffer,"JPG");//按照JPG解码保存数据
-//    image_rgb565.save("/opt/" + CardID + ".jpg","JPG");
+    image_rgb565.save("/opt/" + CardID + ".jpg","JPG");
     QByteArray Base64Data = tempData.toBase64();
 
     QFile file(Base64);

@@ -108,7 +108,7 @@ public:
     static QString GetCurrentDateTime()
     {
         QDateTime time = QDateTime::currentDateTime();
-        return time.toString("yyyy-MM-dd hh:mm:ss");
+        return time.toString("yyyy-MM-dd_hh-mm-ss");
     }
 
     static QString GetCurrentDateTimeNoSpace()
@@ -288,7 +288,7 @@ public:
         QStringList fileFormat(filter);
         dir.setNameFilters(fileFormat);
         dir.setFilter(QDir::Files);
-        dir.setSorting(QDir::Time);
+        dir.setSorting(QDir::Time | QDir::Reversed);
 
         return dir.entryList();
     }

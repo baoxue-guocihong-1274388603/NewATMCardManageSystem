@@ -17,7 +17,9 @@ SOURCES += main.cpp\
     ReadCardID/readcardid.cpp \
     LinkOperate/linkoperate.cpp \
     QextSerialPort/listenserialthread.cpp \
-    TcpThread/tcpcommunicate.cpp
+    TcpThread/tcpcommunicate.cpp \
+    usercontrol/persioninfocontrol.cpp \
+    downloadcertificatepic.cpp
 
 HEADERS  += \
     QextSerialPort/qextserialport.h \
@@ -27,7 +29,9 @@ HEADERS  += \
     ReadCardID/readcardid.h \
     LinkOperate/linkoperate.h \
     QextSerialPort/listenserialthread.h \
-    TcpThread/tcpcommunicate.h
+    TcpThread/tcpcommunicate.h \
+    usercontrol/persioninfocontrol.h \
+    downloadcertificatepic.h
 
 DEFINES += WITH_OPENSSL
 
@@ -36,3 +40,7 @@ MOC_DIR=temp/moc
 RCC_DIR=temp/rcc
 UI_DIR=temp/ui
 OBJECTS_DIR=temp/obj
+
+FORMS += \
+    ReadCardID/readcardid.ui \
+    usercontrol/persioninfocontrol.ui

@@ -11,19 +11,21 @@ public:
     explicit ListenSerialThread(QObject *parent = 0);
     QString ReadSerial();
     void SendDataPackage(QString CardID, QString TriggerTime);
-    void SendCommonCode(QString MessageMerge);
     
 public slots:
     void slotCloseConnection();
     void slotEstablishConnection();
     void slotDisplayError(QAbstractSocket::SocketError socketError);
 
-    void PollingReadSmartUSBState();
+    void slotPollingReadSmartUSBState();
+
+    void slotSendCommonCode();
 
 private:
     enum SendMsgType{
         SmartUSBAlarmState,//SmartUSB设备报警
         SmartUSBDeassertState,//SmartUSB设备报警解除
+        SmartUSBNewInsert//SmartUSB有新设备插入
     };
     volatile enum SendMsgType SendMsgTypeFlag;
 
@@ -39,6 +41,9 @@ private:
     QString ServerListenPort;
 
     QTimer *ReadSmartUSBStateTimer;
+
+    QTimer *SendAlarmMsgTimer;//专门用来发送报警信息
+    QList<QString> AlarmMsgBuffer;
 };
 
 #endif // LISTENSERIALTHREAD_H

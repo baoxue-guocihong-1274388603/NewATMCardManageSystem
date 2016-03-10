@@ -1,16 +1,24 @@
 #ifndef READCARDID_H
 #define READCARDID_H
 
+#include "usercontrol/persioninfocontrol.h"
 #include "OperateCamera/operatecamera.h"
 #include "LinkOperate/linkoperate.h"
 #include "CommonSetting.h"
 
-class ReadCardID : public QObject
+namespace Ui {
+class ReadCardID;
+}
+
+class ReadCardID : public QWidget
 {
     Q_OBJECT
 public:
-    explicit ReadCardID(QObject *parent = 0);
+    explicit ReadCardID(QWidget *parent = 0);
     ~ReadCardID();
+
+    void InitForm();
+
     void OpenDevice();
     void ParseAllSwipCardRecord();
     void CommonLinkOperateCode();
@@ -20,6 +28,17 @@ public slots:
     void slotClearAllRecord();
 
 public:
+    Ui::ReadCardID *ui;
+
+    PersionInfoControl *first;
+    PersionInfoControl *second;
+    PersionInfoControl *third;
+    PersionInfoControl *four;
+    PersionInfoControl *five;
+    PersionInfoControl *sex;
+
+    QList<PersionInfoControl *> list;
+
     enum WorkMode{
         SwipCardWorkMode,//刷卡工作模式
         StandbyWorkMode,//待机工作模式
@@ -41,6 +60,8 @@ public:
     QStringList TriggerTimeList;//保存加钞、巡检、接警操作的刷卡触发时间
 
     QTimer *TimeOutClearTimer;//刷卡超时清零定时器
+
+    qint8 index;
 };
 
 #endif // READCARDID_H
