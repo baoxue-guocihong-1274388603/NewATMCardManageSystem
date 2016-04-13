@@ -17,8 +17,8 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-#define USES_SHUAKAJI_WAIKE
-//#define USES_JIAYOUZHAN_WAIKE
+//#define USES_SHUAKAJI_WAIKE
+#define USES_JIAYOUZHAN_WAIKE
 
 class LinkOperate : public QObject
 {

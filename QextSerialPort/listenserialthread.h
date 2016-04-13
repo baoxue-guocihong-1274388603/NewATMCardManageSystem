@@ -4,6 +4,8 @@
 #include "qextserialport.h"
 #include "CommonSetting.h"
 
+#define TIMES QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")
+
 class ListenSerialThread : public QObject
 {
     Q_OBJECT

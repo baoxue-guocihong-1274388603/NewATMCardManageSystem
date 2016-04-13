@@ -80,8 +80,7 @@ void ListenSerialThread::slotPollingReadSmartUSBState()
                 if(PreSmartUSBNum < SmartUSBState){
                     //只要有设备插入,就上传记录,不管是否报警和报警解除
                     QString CardID = QString::number(SmartUSBId) + QString(",") + QString::number(SmartUSBState) + QString(",") + QString::number(SmartUSBAlarmState);
-                    QString TriggerTime =
-                            CommonSetting::GetCurrentDateTime();
+                    QString TriggerTime = TIMES;
                     SendMsgTypeFlag =
                             ListenSerialThread::SmartUSBNewInsert;
                     SendDataPackage(CardID,TriggerTime);
@@ -91,8 +90,7 @@ void ListenSerialThread::slotPollingReadSmartUSBState()
                 if((SmartUSBPreState[SmartUSBId] == 0) && (SmartUSBAlarmState == 1)){//报警
                     SmartUSBPreState[SmartUSBId] = 1;
                     QString CardID = QString::number(SmartUSBId) + QString(",") + QString::number(SmartUSBState) + QString(",") + QString::number(SmartUSBAlarmState);
-                    QString TriggerTime =
-                            CommonSetting::GetCurrentDateTime();
+                    QString TriggerTime = TIMES;
                     SendMsgTypeFlag =
                             ListenSerialThread::SmartUSBAlarmState;
                     SendDataPackage(CardID,TriggerTime);
@@ -100,8 +98,7 @@ void ListenSerialThread::slotPollingReadSmartUSBState()
                 }else if((SmartUSBPreState[SmartUSBId] == 1) && (SmartUSBAlarmState == 0)){//报警解除
                     SmartUSBPreState[SmartUSBId] = 0;
                     QString CardID = QString::number(SmartUSBId) + QString(",") + QString::number(SmartUSBState) + QString(",") + QString::number(SmartUSBAlarmState);
-                    QString TriggerTime =
-                            CommonSetting::GetCurrentDateTime();
+                    QString TriggerTime = TIMES;
                     SendMsgTypeFlag = ListenSerialThread::SmartUSBDeassertState;
                     SendDataPackage(CardID,TriggerTime);
                     qDebug() << "报警解除设备ID:" << SmartUSBId << "\n";
