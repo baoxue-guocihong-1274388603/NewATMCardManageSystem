@@ -2,6 +2,7 @@
 #define PERSIONINFOCONTROL_H
 
 #include <QWidget>
+#include <QImage>
 
 namespace Ui {
 class PersionInfoControl;
@@ -17,6 +18,7 @@ public:
     void SetText(QString text);
     void ShowCertificatePic(QString url);
     void ShowLocalSnapPic(QString url);
+    void ShowLocalSnapPic(QImage image);
     void ClearAll();
 
 private:

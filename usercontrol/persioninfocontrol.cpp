@@ -33,6 +33,11 @@ void PersionInfoControl::ShowLocalSnapPic(QString url)//显示本地现场抓拍
     ui->labLocalSnapPic->setPixmap(QPixmap::fromImage(image.scaled(ui->labLocalSnapPic->width(),ui->labLocalSnapPic->height())));
 }
 
+void PersionInfoControl::ShowLocalSnapPic(QImage image)//显示本地现场抓拍图片
+{
+    ui->labLocalSnapPic->setPixmap(QPixmap::fromImage(image.scaled(ui->labLocalSnapPic->width(),ui->labLocalSnapPic->height())));
+}
+
 void PersionInfoControl::ClearAll()
 {
     ui->labPersionInfo->clear();

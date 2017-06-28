@@ -33,7 +33,7 @@ public:
     void QueryDeviceCapability();
     void SetPictureFormat();
     void RequestBuffer();
-    void StartCamera(QString CardID, QString TriggerTime);
+    QImage StartCamera(QString CardID, QString TriggerTime);
 
 public slots:
 

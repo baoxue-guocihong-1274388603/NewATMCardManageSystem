@@ -25,8 +25,7 @@ TcpCommunicate::TcpCommunicate(QObject *parent) :
     ServerListenPort = CommonSetting::ReadSettings("/bin/config.ini","ServerNetwork/PORT");
 
     HeartTimer = new QTimer(this);
-    quint32 HeartIntervalTime =
-            CommonSetting::ReadSettings("/bin/config.ini","time/HeartIntervalTime").toUInt() * 60 * 1000;
+    quint32 HeartIntervalTime = CommonSetting::ReadSettings("/bin/config.ini","time/HeartIntervalTime").toUInt() * 60 * 1000;
     HeartTimer->setInterval(HeartIntervalTime);
     connect(HeartTimer,SIGNAL(timeout()),this,SLOT(slotSendHeartData()));
 
@@ -120,8 +119,7 @@ void TcpCommunicate::slotGetCardInfo()
 void TcpCommunicate::slotCheckNetWorkState()
 {
     system("ifconfig eth0 > /bin/network_info.txt");
-    QString network_info =
-            CommonSetting::ReadFile("/bin/network_info.txt");
+    QString network_info = CommonSetting::ReadFile("/bin/network_info.txt");
     if(!network_info.contains("RUNNING")){
         ConnectStateFlag = TcpCommunicate::DisConnectedState;
     }
@@ -165,57 +163,42 @@ void TcpCommunicate::ParseServerMessage(QString XmlData)
         //判断根元素是否有这个属性
         if(RootElement.hasAttribute("NowTime")){
             //获得这个属性对应的值
-            NowTime = CardListUpTime =
-                    RootElement.attributeNode("NowTime").value();
+            NowTime = CardListUpTime = RootElement.attributeNode("NowTime").value();
             CommonSetting::SettingSystemDateTime(NowTime);
         }
 
-        QDomNode firstChildNode =
-                RootElement.firstChild();//第一个子节点
+        QDomNode firstChildNode = RootElement.firstChild();//第一个子节点
         while(!firstChildNode.isNull()){
             if(firstChildNode.nodeName() == "Caption"){
                 qDebug() << "Caption";
                 CaptionFlag = true;
-                QDomElement firstChildElement =
-                        firstChildNode.toElement();
-                QString firstChildElementText =
-                        firstChildElement.text();
+                QDomElement firstChildElement = firstChildNode.toElement();
+                QString firstChildElementText = firstChildElement.text();
+
                 if(firstChildElementText.split(",").size() == 4){
-                    LatestCardIDList <<
-                                        firstChildElementText.split(",").at(0);
-                    LatestCardTypeList <<
-                                          firstChildElementText.split(",").at(1);
-                    LatestCardStatusList <<
-                                            firstChildElementText.split(",").at(2);
-                    LatestCardValidTimeList <<
-                                               firstChildElementText.split(",").at(3);
+                    LatestCardIDList << firstChildElementText.split(",").at(0);
+                    LatestCardTypeList << firstChildElementText.split(",").at(1);
+                    LatestCardStatusList << firstChildElementText.split(",").at(2);
+                    LatestCardValidTimeList << firstChildElementText.split(",").at(3);
                 }
             }else if(firstChildNode.nodeName() == "CardState"){
                 CardStateFlag = true;
-                QDomElement firstChildElement =
-                        firstChildNode.toElement();
-                QString firstChildElementText =
-                        firstChildElement.text();
+                QDomElement firstChildElement = firstChildNode.toElement();
+                QString firstChildElementText = firstChildElement.text();
+
                 if(firstChildElementText.split(",").size() == 4){
-                    CurrentCardIDList <<
-                                         firstChildElementText.split(",").at(0);
-                    CurrentCardTypeList <<
-                                           firstChildElementText.split(",").at(1);
-                    CurrentCardStatusList <<
-                                             firstChildElementText.split(",").at(2);
-                    CurrentCardValidTimeList <<
-                                                firstChildElementText.split(",").at(3);
+                    CurrentCardIDList << firstChildElementText.split(",").at(0);
+                    CurrentCardTypeList << firstChildElementText.split(",").at(1);
+                    CurrentCardStatusList << firstChildElementText.split(",").at(2);
+                    CurrentCardValidTimeList << firstChildElementText.split(",").at(3);
                 }
                 qDebug() << "Update CardState";
             }else if(firstChildNode.nodeName() == "FunctionTypeName"){
                 qDebug() << "FunctionTypeName";
                 isGetCardOrderList = true;
-                QDomElement firstChildElement =
-                        firstChildNode.toElement();
-                QString firstChildElementText =
-                        firstChildElement.text();
-                QStringList FunctionList =
-                        firstChildElementText.split(";");
+                QDomElement firstChildElement = firstChildNode.toElement();
+                QString firstChildElementText = firstChildElement.text();
+                QStringList FunctionList = firstChildElementText.split(";");
                 // 开始启动事务
                 QSqlDatabase::database().transaction();
 
@@ -232,12 +215,9 @@ void TcpCommunicate::ParseServerMessage(QString XmlData)
             }else if(firstChildNode.nodeName() == "PersonTypeName"){
                 qDebug() << "PersonTypeName";
                 isGetCardOrderList = true;
-                QDomElement firstChildElement =
-                        firstChildNode.toElement();
-                QString firstChildElementText =
-                        firstChildElement.text();
-                QStringList PersonTypeNameList =
-                        firstChildElementText.split(";");
+                QDomElement firstChildElement = firstChildNode.toElement();
+                QString firstChildElementText = firstChildElement.text();
+                QStringList PersonTypeNameList = firstChildElementText.split(";");
                 // 开始启动事务
                 QSqlDatabase::database().transaction();
 
@@ -279,8 +259,7 @@ void TcpCommunicate::ParseServerMessage(QString XmlData)
                 index++;
             }
 
-            firstChildNode =
-                    firstChildNode.nextSibling();//下一个节点
+            firstChildNode = firstChildNode.nextSibling();//下一个节点
         }
         if(CaptionFlag){
             isGetCardIDList = true;
@@ -374,15 +353,11 @@ void TcpCommunicate::SendDataPackage(QString PathPrefix,QString CardID,QString T
     dom.appendChild(dom.createProcessingInstruction("xml", XmlHeader));
 
     //创建根元素
-    QDomElement RootElement =
-            dom.createElement("Device");
+    QDomElement RootElement = dom.createElement("Device");
 
-    QString DeviceID =
-            CommonSetting::ReadSettings("/bin/config.ini","DeviceID/ID");
-    QString MacAddress =
-            CommonSetting::ReadMacAddress();
-    QString CardListUpTime =
-            CommonSetting::ReadSettings("/bin/config.ini","time/CardListUpTime");
+    QString DeviceID = CommonSetting::ReadSettings("/bin/config.ini","DeviceID/ID");
+    QString MacAddress = CommonSetting::ReadMacAddress();
+    QString CardListUpTime = CommonSetting::ReadSettings("/bin/config.ini","time/CardListUpTime");
 
     RootElement.setAttribute("ID",DeviceID);//设置属性
     RootElement.setAttribute("Mac",MacAddress);
@@ -402,14 +377,12 @@ void TcpCommunicate::SendDataPackage(QString PathPrefix,QString CardID,QString T
         RootElement.appendChild(firstChildElement);
     }else if(SendMsgTypeFlag == TcpCommunicate::GetCardTypeName){
         //创建第一个子元素
-        QDomElement firstChildElement =
-                dom.createElement("GetCardTypeName");
+        QDomElement firstChildElement = dom.createElement("GetCardTypeName");
         //将元素添加到根元素后面
         RootElement.appendChild(firstChildElement);
     }else if(SendMsgTypeFlag == TcpCommunicate::GetCardInfo){
         //创建第一个子元素
-        QDomElement firstChildElement =
-                dom.createElement("GetCardInfo");
+        QDomElement firstChildElement = dom.createElement("GetCardInfo");
 
         QStringList id_list;
         query.exec(tr("SELECT [卡号] FROM [卡号表]"));
@@ -433,8 +406,7 @@ void TcpCommunicate::SendDataPackage(QString PathPrefix,QString CardID,QString T
         }
 
         for(int i = 0; i < CardIDList.count(); i++){
-            QDomElement firstChildElement =
-                    dom.createElement("OperationCmd");
+            QDomElement firstChildElement = dom.createElement("OperationCmd");
             firstChildElement.setAttribute("Type",CardType);
             firstChildElement.setAttribute("CardID",CardIDList.at(i));
             firstChildElement.setAttribute("TriggerTime",TriggerTimeList.at(i));
@@ -442,8 +414,7 @@ void TcpCommunicate::SendDataPackage(QString PathPrefix,QString CardID,QString T
             qDebug() << fileName;
             QString imgBase64 = CommonSetting::ReadFile(fileName);
             if(!imgBase64.isEmpty()){
-                QDomText firstChildElementText =
-                        dom.createTextNode(imgBase64);//base64图片数据
+                QDomText firstChildElementText = dom.createTextNode(imgBase64);//base64图片数据
                 firstChildElement.appendChild(firstChildElementText);
             }
             //将元素添加到根元素后面
@@ -464,10 +435,11 @@ void TcpCommunicate::SendCommonCode(QString MessageMerge)
 {    
     if(ConnectStateFlag == TcpCommunicate::ConnectedState){
         tcpSocket->write(MessageMerge.toAscii());
-        if(tcpSocket->waitForBytesWritten(3000)){
-            DataSendStateFlag = TcpCommunicate::SendSucceed;
-            PareseSendMsgType();
-        }
+        CommonSetting::Sleep(300);
+
+        DataSendStateFlag = TcpCommunicate::SendSucceed;
+        PareseSendMsgType();
+
         return;
     }else if(ConnectStateFlag == TcpCommunicate::DisConnectedState){
         tcpSocket->disconnectFromHost();
@@ -475,13 +447,14 @@ void TcpCommunicate::SendCommonCode(QString MessageMerge)
         for(int i = 0; i < 3; i++){
             tcpSocket->connectToHost(ServerIpAddress,
                                      ServerListenPort.toUInt());
-            CommonSetting::Sleep(1000);
+            CommonSetting::Sleep(300);
+
             if(ConnectStateFlag == TcpCommunicate::ConnectedState){
                 tcpSocket->write(MessageMerge.toAscii());
-                if(tcpSocket->waitForBytesWritten(3000)){
-                    DataSendStateFlag = TcpCommunicate::SendSucceed;
-                    PareseSendMsgType();
-                }
+                CommonSetting::Sleep(300);
+
+                DataSendStateFlag = TcpCommunicate::SendSucceed;
+                PareseSendMsgType();
                 return;
             }
             tcpSocket->disconnectFromHost();
@@ -508,10 +481,10 @@ void TcpCommunicate::PareseSendMsgType()
 void TcpCommunicate::slotSendLogInfo(QString info)
 {
     dirWatcher->removePath("/sdcard/log");
-    CommonSetting::Sleep(3000);
+    CommonSetting::Sleep(1000);
 
     tcpSocket->connectToHost(ServerIpAddress,ServerListenPort.toUInt());
-    tcpSocket->waitForConnected();
+    CommonSetting::Sleep(300);
 
     QStringList tempCardIDList;
     QStringList tempTriggerTimeList;

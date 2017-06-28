@@ -1,4 +1,4 @@
-1、报警
+1、报警--80001
 发送：
 <?xml version="1.0" encoding="UTF-8"?>
 <Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.66">
@@ -15,7 +15,7 @@ ICARD:00000149000000<?xml version="1.0" encoding="UTF-8"?>
 Type：固定为80001
 CardID:SmartUSB设备id（0-7），SmartUSB设备的状态，SmartUSB设备的报警状态（0-1）
 
-2、报警解除
+2、报警解除--80002
 发送：
 <?xml version="1.0" encoding="UTF-8"?>
 <Device ID="SGT1TEST0001" Type="ICCard" Mac="00FFAABBCCDD" Ver="1.2.0.66">
@@ -27,3 +27,9 @@ ICARD:00000149000000<?xml version="1.0" encoding="UTF-8"?>
 <Server Type="IdentifierService" Ver="1.0.0.0" NowTime="2015-05-14 15:37:15">
 <OK/>
 </Server>
+
+
+3、新设备插入80003
+
+
+4、设备不在线80004

@@ -33,6 +33,10 @@ HEADERS  += \
     usercontrol/persioninfocontrol.h \
     downloadcertificatepic.h
 
+FORMS += \
+    ReadCardID/readcardid.ui \
+    usercontrol/persioninfocontrol.ui
+
 DEFINES += WITH_OPENSSL
 
 DESTDIR=bin
@@ -40,7 +44,3 @@ MOC_DIR=temp/moc
 RCC_DIR=temp/rcc
 UI_DIR=temp/ui
 OBJECTS_DIR=temp/obj
-
-FORMS += \
-    ReadCardID/readcardid.ui \
-    usercontrol/persioninfocontrol.ui

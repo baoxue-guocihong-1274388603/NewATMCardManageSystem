@@ -4,7 +4,17 @@
 #include "usercontrol/persioninfocontrol.h"
 #include "OperateCamera/operatecamera.h"
 #include "LinkOperate/linkoperate.h"
+#include "QextSerialPort/listenserialthread.h"
 #include "CommonSetting.h"
+
+//void signal_handler(int signum);
+
+#ifdef USES_SHUAKAJI_WAIKE//如果用的是ATM刷卡机外壳
+
+#define SHUAKAJI_IOC_MAGIC             	'M'
+#define GET_STATE                 		_IOR(SHUAKAJI_IOC_MAGIC,1,int)
+
+#endif
 
 namespace Ui {
 class ReadCardID;
@@ -20,10 +30,16 @@ public:
     void InitForm();
 
     void OpenDevice();
+
     void ParseAllSwipCardRecord();
     void CommonLinkOperateCode();
 
 public slots:
+
+#ifdef USES_SHUAKAJI_WAIKE//如果用的是ATM刷卡机外壳
+    void slotReadState();
+#endif
+
     void slotReadCardID();
     void slotClearAllRecord();
 
@@ -53,7 +69,7 @@ public:
 
     OperateCamera *operate_camera;//操作camera
     LinkOperate *link_operate;//联动操作
-    QThread link_operate_thread;//实际执行联动工作的线程
+    ListenSerialThread *listen_serial;
 
     QStringList CardIDList;//用来保存加钞、巡检、接警操作的卡号序列
     QStringList CardTypeList;
@@ -62,6 +78,11 @@ public:
     QTimer *TimeOutClearTimer;//刷卡超时清零定时器
 
     qint8 index;
+
+#ifdef USES_SHUAKAJI_WAIKE//如果用的是ATM刷卡机外壳
+    quint8 isStop485Bus;//读取SmartuUsb设备或者地址模块的报警信息，会导致韦根26丢失中断，所以刷卡的过程中，需要停止读取SmartuUsb或者地址模块的报警信息
+    QTimer *ReadStateTimer;
+#endif
 };
 
 #endif // READCARDID_H

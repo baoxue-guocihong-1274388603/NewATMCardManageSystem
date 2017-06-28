@@ -6,7 +6,7 @@ LinkOperate::LinkOperate(QObject *parent) :
     OpenDevice();
 
     BuzzerTimer = new QTimer;
-    BuzzerTimer->setInterval(8000);
+    BuzzerTimer->setInterval(3000);
     connect(BuzzerTimer,SIGNAL(timeout()),this,SLOT(slotBuzzerOff()));
 
     PowerLedTimer = new QTimer;
@@ -32,18 +32,24 @@ void LinkOperate::OpenDevice()
 {
 
     BuzzerFd = open("/dev/s5pv210_buzzer",O_RDWR);
-    if(BuzzerFd == -1){
-        qDebug() << "/dev/s5pv210_buzzer failed.Exit the Program";
+    if(BuzzerFd < 0){
+        qDebug() << "open /dev/s5pv210_buzzer failed";
+    } else {
+        qDebug() << "open /dev/s5pv210_buzzer succeed";
     }
 
     PowerLedFd = open("/dev/s5pv210_led",O_RDWR);
-    if(PowerLedFd == -1){
-        qDebug() << "/dev/s5pv210_led failed.Exit the Program";
+    if(PowerLedFd < 0){
+        qDebug() << "open /dev/s5pv210_led failed";
+    } else {
+        qDebug() << "open /dev/s5pv210_led succeed";
     }
 
     RelayFd = open("/dev/s5pv210_relay",O_RDWR);
-    if(RelayFd == -1){
-        qDebug() << "/dev/s5pv210_relay failed.Exit the Program";
+    if(RelayFd < 0){
+        qDebug() << "open /dev/s5pv210_relay failed";
+    } else {
+        qDebug() << "open /dev/s5pv210_relay succeed";
     }
 }
 
@@ -61,7 +67,7 @@ void LinkOperate::slotPowerLedState()
     ioctl(PowerLedFd,flag ? 1 : 0);
 #endif
 #ifdef USES_JIAYOUZHAN_WAIKE//如果用的是加油站外壳
-    ioctl(PowerLedFd,flag ? 5 : 11);
+    ioctl(PowerLedFd,flag ? Led1_Green_On : Led1_Green_Off);
 #endif
 }
 
@@ -82,7 +88,7 @@ void LinkOperate::PowerLedOn()
     ioctl(PowerLedFd,1);
 #endif
 #ifdef USES_JIAYOUZHAN_WAIKE//如果用的是加油站外壳
-    ioctl(PowerLedFd,5);
+    ioctl(PowerLedFd,Led1_Green_On);
 #endif
 }
 

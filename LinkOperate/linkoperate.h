@@ -17,8 +17,29 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
-//#define USES_SHUAKAJI_WAIKE
-#define USES_JIAYOUZHAN_WAIKE
+#define USES_SHUAKAJI_WAIKE
+//#define USES_JIAYOUZHAN_WAIKE
+
+
+#ifdef USES_JIAYOUZHAN_WAIKE
+
+#define LED_IOCTL_BASE   'W'
+
+#define Led1_Red_On      _IOWR(LED_IOCTL_BASE, 0, int)
+#define Led1_Green_On    _IOWR(LED_IOCTL_BASE, 1, int)
+#define Led2_Red_On      _IOWR(LED_IOCTL_BASE, 2, int)
+#define Led2_Green_On    _IOWR(LED_IOCTL_BASE, 3, int)
+#define Led3_Red_On      _IOWR(LED_IOCTL_BASE, 4, int)
+#define Led3_Green_On    _IOWR(LED_IOCTL_BASE, 5, int)
+
+#define Led1_Red_Off     _IOWR(LED_IOCTL_BASE, 6, int)
+#define Led1_Green_Off   _IOWR(LED_IOCTL_BASE, 7, int)
+#define Led2_Red_Off     _IOWR(LED_IOCTL_BASE, 8, int)
+#define Led2_Green_Off   _IOWR(LED_IOCTL_BASE, 9, int)
+#define Led3_Red_Off     _IOWR(LED_IOCTL_BASE, 10, int)
+#define Led3_Green_Off   _IOWR(LED_IOCTL_BASE, 11, int)
+
+#endif
 
 class LinkOperate : public QObject
 {

@@ -8,18 +8,30 @@ ReadCardID::ReadCardID(QWidget *parent) :
     ui->setupUi(this);
 
     InitForm();
+    OpenDevice();
 
     WorkModeState = ReadCardID::StandbyWorkMode;
     TotalSwipCardCount = 0;
     index = 1;
 
-    OpenDevice();
-
     operate_camera = new OperateCamera(this);
 
-    link_operate = new LinkOperate;
-    link_operate->moveToThread(&link_operate_thread);
-    link_operate_thread.start();
+    link_operate = new LinkOperate(this);
+
+#ifdef USES_SHUAKAJI_WAIKE//如果用的是ATM刷卡机外壳
+    //用来读取SmartUSB设备或者地址模块的报警信息
+//    listen_serial = new ListenSerialThread();
+    ListenSerialThread::newInstance()->init();
+
+    isStop485Bus = 0;
+
+    ReadStateTimer = new QTimer(this);
+    ReadStateTimer->setInterval(1);
+    connect(ReadStateTimer,SIGNAL(timeout()),this,SLOT(slotReadState()));
+    ReadStateTimer->start();
+#endif
+
+
 
     quint32 MaxTime = CommonSetting::ReadSettings("/bin/config.ini","time/MaxTime").toUInt() * 1000;
     TimeOutClearTimer = new QTimer(this);
@@ -74,10 +86,39 @@ void ReadCardID::InitForm()
 
 void ReadCardID::OpenDevice()
 {
+#ifdef USES_SHUAKAJI_WAIKE
+    WiegFd = open("/dev/s5pv210_wieg0",O_RDWR | O_NONBLOCK);//打开外部韦根设备文件
+    if(WiegFd < 0){
+        qDebug() << "open /dev/s5pv210_wieg0 failed";
+    } else {
+        qDebug() << "open /dev/s5pv210_wieg0 succeed";
+    }
+#endif
+
+#ifdef USES_JIAYOUZHAN_WAIKE
     WiegFd = open("/dev/s5pv210_wieg1",O_RDWR | O_NONBLOCK);//打开外部韦根设备文件
     if(WiegFd < 0){
-        qDebug() << "cannot open device /dev/s5pv210_wieg1";
+        qDebug() << "open /dev/s5pv210_wieg1 failed";
+    } else {
+        qDebug() << "open /dev/s5pv210_wieg1 succeed";
     }
+#endif
+    /*
+    //将当前进程PID设置为fd文件所对应驱动程序将要发送SIGIO,SIGUSR信号进程PID
+    fcntl(WiegFd, F_SETOWN, getpid());
+
+    //获取fd的打开方式
+    int Oflags = fcntl(WiegFd, F_GETFL);
+
+    //将fd的打开方式设置为FASYNC --- 即 支持异步通知
+    //该行代码执行会触发驱动程序中 file_operations->fasync 函数
+    //fasync函数调用fasync_helper初始化一个fasync_struct结构体
+    //该结构体描述了将要发送信号的进程PID (fasync_struct->fa_file->f_owner->pid)
+    fcntl(WiegFd, F_SETFL, Oflags | FASYNC);
+
+    //捕获SIGIO信号（由驱动程序发送）
+    signal(SIGIO, signal_handler);
+    */
 }
 
 void ReadCardID::slotReadCardID()
@@ -110,14 +151,17 @@ void ReadCardID::slotReadCardID()
     qDebug() << QString("CardID:") << CardID;
 
     //待机工作模式下刷一张卡要检测卡类型
-    if(WorkModeState == ReadCardID::StandbyWorkMode){
+    if(WorkModeState == ReadCardID::StandbyWorkMode){//待机工作模式
+        bool is_exist = false;
+
         //如果该卡在数据库中不存在,此次操作无影响；如果数据库中存在,就要判断该卡的动作号是什么
         query.exec(tr("SELECT [动作号] FROM [功能表] WHERE [功能号] = (SELECT [功能号] FROM [卡号表] WHERE [卡号] = \"%1\")").arg(CardID));
         while(query.next()){
-            QString ActionNum =
-                    query.value(0).toString();
+            is_exist = true;
+
+            QString ActionNum = query.value(0).toString();
             if(ActionNum == "2"){//拍照直接上传,不进行工作模式切换
-                operate_camera->StartCamera(CardID,TriggerTime);
+                QImage image = operate_camera->StartCamera(CardID,TriggerTime);
 
                 QString StrId = QUuid::createUuid().toString();
                 QString DirName = StrId.mid(1,StrId.length() - 2);
@@ -126,15 +170,28 @@ void ReadCardID::slotReadCardID()
                 QString Base64 = QString("/opt/Base64_") + CardID + QString("_") + TriggerTime + QString(".txt");
                 system(tr("mv %1 /opt/%2").arg(Base64).arg(DirName).toAscii().data());
                 system(tr("mv /opt/%1 /sdcard/log").arg(DirName).toAscii().data());
-            }else if((ActionNum == "0")){//什么事情都不做
 
+#ifdef USES_SHUAKAJI_WAIKE//如果用的是ATM刷卡机外壳
+            //    listen_serial->start();
+            ListenSerialThread::newInstance()->start();//开启读取SmartUSB或者地址模块的报警信息
+#endif
+            }else if((ActionNum == "0")){//什么事情都不做
+#ifdef USES_SHUAKAJI_WAIKE//如果用的是ATM刷卡机外壳
+            //    listen_serial->start();
+            ListenSerialThread::newInstance()->start();//开启读取SmartUSB或者地址模块的报警信息
+#endif
             }else if((ActionNum == "1")){//切换工作模式为刷卡工作模式,并拍照、保存卡号和触发时间、启动清零定时器、自增刷卡次数,清除上次刷卡图片,显示该卡对应人员的姓名和卡号和卡类型和本地抓拍图片和证件图片
+#ifdef USES_SHUAKAJI_WAIKE//如果用的是ATM刷卡机外壳
+                //因为读取SmartUSB设备或者地址模块的报警信息会影响韦根26，所有这里停止读取两种设备的报警信息
+//                listen_serial->stop();
+                ListenSerialThread::newInstance()->stop();
+#endif
                 //设置为刷卡工作模式
                 link_operate->PowerLedTimer->stop();
                 link_operate->PowerLedOn();//电源指示灯常亮
                 WorkModeState = ReadCardID::SwipCardWorkMode;
 
-                operate_camera->StartCamera(CardID,TriggerTime);//启动摄像头拍照
+                QImage image = operate_camera->StartCamera(CardID,TriggerTime);//启动摄像头拍照
                 CardIDList << CardID;//保存卡号
                 TriggerTimeList << TriggerTime;//保存触发时间
 
@@ -163,13 +220,20 @@ void ReadCardID::slotReadCardID()
                 }
 
                 first->SetText(PersionName + "\t" + CardID + "\t" + PersionTypeName);
-                first->ShowLocalSnapPic(tr("/opt/%1.jpg").arg(CardID));
+                first->ShowLocalSnapPic(image);
                 first->ShowCertificatePic(PersionPicLocalUrl);
 
                 qDebug() << "PersionPicLocalUrl:" << PersionPicLocalUrl;
             }
         }
-    }else if(WorkModeState == ReadCardID::SwipCardWorkMode){
+
+        if (!is_exist) {//卡号不在数据库里面，因为刷卡之后，停止读取报警信息，所以需要重新开启读取SmartUSB设备或者地址模块的报警信息
+#ifdef USES_SHUAKAJI_WAIKE//如果用的是ATM刷卡机外壳
+            //    listen_serial->start();
+            ListenSerialThread::newInstance()->start();//开启读取SmartUSB或者地址模块的报警信息
+#endif
+        }
+    }else if(WorkModeState == ReadCardID::SwipCardWorkMode){//刷卡工作模式
         bool isDuplicate = false;
         if(TotalSwipCardCount >= 2){//判断人员卡是否刷多次
             if(CardIDList.join(",").mid(9).contains(CardID)){
@@ -179,7 +243,7 @@ void ReadCardID::slotReadCardID()
 
         //如果刷卡多次,则只保留最早一次刷卡记录
         if(!isDuplicate){
-            operate_camera->StartCamera(CardID,TriggerTime);//启动摄像头拍照
+            QImage image = operate_camera->StartCamera(CardID,TriggerTime);//启动摄像头拍照
             CardIDList << CardID;//保存卡号和触发时间
             TriggerTimeList << TriggerTime;
 
@@ -200,7 +264,7 @@ void ReadCardID::slotReadCardID()
                 }
 
                 list.at(index)->SetText(PersionName + "\t" + CardID + "\t" + PersionTypeName);
-                list.at(index)->ShowLocalSnapPic(tr("/opt/%1.jpg").arg(CardID));
+                list.at(index)->ShowLocalSnapPic(image);
                 list.at(index)->ShowCertificatePic(PersionPicLocalUrl);
 
                 qDebug() << "PersionPicLocalUrl:" << PersionPicLocalUrl;
@@ -346,6 +410,7 @@ void ReadCardID::ParseAllSwipCardRecord()
     }
 
 #endif
+
     //不管刷卡组合是否解析成功,都要将所有刷卡记录删除
     slotClearAllRecord();
 }
@@ -370,6 +435,19 @@ void ReadCardID::CommonLinkOperateCode()
     system(tr("mv /opt/%1 /sdcard/log").arg(DirName).toAscii().data());
 }
 
+#ifdef USES_SHUAKAJI_WAIKE//如果用的是ATM刷卡机外壳
+void ReadCardID::slotReadState()
+{
+    ioctl(WiegFd,GET_STATE,&isStop485Bus);
+
+    if (isStop485Bus == 1) {
+        //因为读取SmartUSB设备或者地址模块的报警信息会影响韦根26，所有这里停止读取两种设备的报警信息
+        //                listen_serial->stop();
+        ListenSerialThread::newInstance()->stop();
+    }
+}
+#endif
+
 void ReadCardID::slotClearAllRecord()
 {
     TimeOutClearTimer->stop();
@@ -385,4 +463,21 @@ void ReadCardID::slotClearAllRecord()
     //添加删除刷卡记录代码
     system("rm -rf /opt/*.txt");
     system("rm -rf /opt/*.jpg");
+
+#ifdef USES_SHUAKAJI_WAIKE//如果用的是ATM刷卡机外壳
+//    listen_serial->start();
+    ListenSerialThread::newInstance()->start();//退出刷卡工作模式以后需要恢复读取SmartUSB或者地址模块的报警信息
+#endif
 }
+
+/*
+//信号处理函数
+void signal_handler(int signum)
+{
+    if(signum == SIGIO){//停止读取SmartUSB设备的状态或者地址模块的状态
+        ListenSerialThread::newInstance()->stop();
+
+        qDebug() << "stop read SmartUSB or AddressModule state info";
+    }
+}
+*/
